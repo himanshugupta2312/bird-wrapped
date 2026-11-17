@@ -3,8 +3,8 @@
   "outputDirectory": "site",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/wrapped", "destination": "/index.html" },
-    { "source": "/wrapped/", "destination": "/index.html" },
+    { "source": "/wrapped", "destination": "/" },
+    { "source": "/wrapped/", "destination": "/" },
     { "source": "/wrapped/:path*", "destination": "/:path*" }
   ]
 }
