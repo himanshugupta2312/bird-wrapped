@@ -384,7 +384,7 @@ function buildSlides(s) {
       <div class="big md">${fmt(s.lifers.length)}</div>
       <p class="sub pop">${s.lifers.length === 1 ? "new species" : "new species"} you hadn't recorded before ${esc(y)}.</p>
       ${mosaic(s.lifers.slice(0, 8).map((l) => l.b), 4, 8)}
-      <p class="sub pop" style="margin-top:8px;font-size:13px">First one: <b>${esc(s.lifers[0].b.en)}</b>, ${esc(s.lifers[0].date)}.</p>
+      <p class="sub pop" style="margin-top:8px;font-size:13px">First one: <b>${esc(s.lifers[0].b.en)}</b>, ${esc(dFull(s.lifers[0].date))}.</p>
       ${mark}
     </section>`);
   }
@@ -729,8 +729,11 @@ function fit() {
 function renderYear(year) {
   YEAR = year;
   const stats = analyze(ROWS, year);
-  if (!stats.nLists) {
-    $("vstatus").textContent = "No checklists found for " + year + ".";
+  if (!stats.nLists || !stats.nSpecies) {
+    hideBubble();
+    $("slides").innerHTML = ""; slideEls = []; CURRENT = null; show(0);
+    renderSkips(stats);
+    $("vstatus").textContent = "No birds that match the sticker set were found for " + year + ".";
     return;
   }
   $("vstatus").textContent = "";
@@ -764,6 +767,7 @@ function renderSkips(s) {
 function openViewer() {
   const years = listYears(ROWS);
   if (!years.length) throw new Error("No dated observations found in that file.");
+  if (!ROWS.some((r) => resolve(r.sci, r.en))) throw new Error("None of the birds in that file matched the sticker set, so there is nothing to show. Check that the names are common or scientific bird names.");
   $("year").innerHTML = years.map((x) => `<option value="${x.y}">${x.y} (${fmt(x.n)} ${ROWS.isLife ? "new species" : "checklists"})</option>`).join("");
   $("landing").hidden = true;
   $("viewer").hidden = false;
