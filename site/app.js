@@ -7,11 +7,6 @@ const IUCN_NAME = { CR: "Critically Endangered", EN: "Endangered", VU: "Vulnerab
 const MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-const HANDLE = "himanshuguptapro";
-let showHandle = true;
-try { showHandle = localStorage.getItem("bw-handle") !== "0"; } catch (e) { /* storage blocked, keep default */ }
-const handleHtml = () => (showHandle ? '<p class="handle">@' + HANDLE + '</p>' : "");
-
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (n) => Math.round(n).toLocaleString("en-US");
@@ -489,7 +484,7 @@ function buildSlides(s) {
         ${s.hours >= 1 ? `<div class="chip"><b>${fmt(s.hours)} h</b>in the field</div>` : ""}
         ${s.lifers.length ? `<div class="chip"><b>${fmt(s.lifers.length)}</b>new species</div>` : ""}
       </div>
-      <div class="end">${handleHtml()}<p class="foot">Stickers: huashu-bird-sticker (CC BY 4.0, AI-generated). Made with Birding Wrapped.</p></div>
+      <p class="foot" style="margin-top:auto">Stickers: huashu-bird-sticker (CC BY 4.0, AI-generated). Made with Birding Wrapped.</p>
     </section>`);
 
   return out;
@@ -623,7 +618,7 @@ function buildLifeSlides(s, mark, spBirds) {
         ${s.countries ? `<div class="chip"><b>${s.countries}</b>${s.countries === 1 ? "country" : "countries"}</div>` : ""}
         ${s.families.length ? `<div class="chip"><b>${s.families.length}</b>families</div>` : ""}
       </div>
-      <div class="end">${handleHtml()}<p class="foot">Stickers: huashu-bird-sticker (CC BY 4.0, AI-generated). Made with Birding Wrapped.</p></div>
+      <p class="foot" style="margin-top:auto">Stickers: huashu-bird-sticker (CC BY 4.0, AI-generated). Made with Birding Wrapped.</p>
     </section>`);
   return out;
 }
@@ -879,13 +874,6 @@ function init() {
   $("save").addEventListener("click", saveCurrent);
   $("saveAll").addEventListener("click", saveAll);
   $("share").addEventListener("click", shareCurrent);
-  const hb = $("handleToggle");
-  hb.checked = showHandle;
-  hb.addEventListener("change", () => {
-    showHandle = hb.checked;
-    try { localStorage.setItem("bw-handle", showHandle ? "1" : "0"); } catch (e) { /* ignore */ }
-    if (slideEls.length) { const keep = cur; renderYear(YEAR); show(keep); }
-  });
   $("thisYear").textContent = new Date().getFullYear();
   $("pasteGo").addEventListener("click", async () => {
     const txt = $("pasteBox").value;

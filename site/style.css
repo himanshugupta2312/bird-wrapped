@@ -109,8 +109,6 @@ select { font: 500 14px var(--sans); padding: 6px 10px; border-radius: 10px; bor
 .tap.next { right: 0; width: 66%; }
 .tap:focus-visible { outline: 2px solid rgba(255,255,255,.7); outline-offset: -4px; }
 
-.toggle { display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 13px; color: var(--mut); cursor: pointer; }
-.toggle input { accent-color: var(--moss); width: 16px; height: 16px; }
 .cta { max-width: 440px; margin: 20px 0 0; text-align: center; font-size: 14px; color: var(--mut); }
 .skipbox { width: 100%; max-width: 440px; margin-top: 8px; font-size: 13px; line-height: 20px; color: var(--mut); }
 .skipbox summary { cursor: pointer; color: var(--fg); font-weight: 600; }
@@ -172,5 +170,3 @@ select { font: 500 14px var(--sans); padding: 6px 10px; border-radius: 10px; bor
 
 
 
-.slide .end { margin-top: auto; }
-.slide .handle { margin: 0 0 8px; font: 600 15px/20px var(--sans); letter-spacing: .02em; opacity: .95; }
