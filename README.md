@@ -1,8 +1,8 @@
-# Birding Wrapped
+﻿# Birding Wrapped
 
 Your eBird year as story cards: new species, countries, signature bird, favourite family, size range, threatened species, monthly rhythm, birding personality and a summary. Cards export as 1080x1920 PNGs, laid out inside Instagram safe zones. Share and Download open a glass dialog to pick which cards (the one you are on is ticked, with a Select all option); several cards download as one ZIP. Everything runs in the browser, so the CSV is never uploaded.
 
-Planned home: `himanshugupta.art/wrapped`.
+Live at [himanshugupta.art/wrapped](https://www.himanshugupta.art/wrapped), served from this repo's own Vercel project and proxied from the portfolio site.
 
 ## Inputs
 
