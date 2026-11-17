@@ -1018,8 +1018,12 @@ function init() {
   $("restart").addEventListener("click", () => { $("viewer").hidden = true; $("landing").hidden = false; setStatus(""); $("file").value = ""; });
   $("prev").addEventListener("click", () => show(cur - 1));
   $("next").addEventListener("click", () => show(cur + 1));
-  $("tapPrev").addEventListener("click", () => show(cur - 1));
-  $("tapNext").addEventListener("click", () => show(cur + 1));
+  // a tap on the card while a bubble is open only closes the bubble, it does not turn the page
+  $("tapPrev").addEventListener("click", () => { if (bubbleFor) hideBubble(); else show(cur - 1); });
+  $("tapNext").addEventListener("click", () => { if (bubbleFor) hideBubble(); else show(cur + 1); });
+  document.addEventListener("click", (e) => { // a tap on empty page space closes it too
+    if (bubbleFor && e.target.closest && !e.target.closest("#bubble, img[data-b], .tap, button, a, select, label, summary, textarea, input, dialog")) hideBubble();
+  });
   $("slides").addEventListener("click", (e) => {
     const t = e.target.closest ? e.target.closest("img[data-b]") : null;
     if (t) { e.stopPropagation(); showBubble(t); }
@@ -1027,8 +1031,6 @@ function init() {
   $("slides").addEventListener("keydown", (e) => {
     if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("img[data-b]")) { e.preventDefault(); showBubble(e.target); }
   });
-  $("tapPrev").addEventListener("pointerdown", hideBubble);
-  $("tapNext").addEventListener("pointerdown", hideBubble);
   $("share").addEventListener("click", () => openDialog("share"));
   $("download").addEventListener("click", () => openDialog("download"));
   $("dlgGo").addEventListener("click", runDialog);
