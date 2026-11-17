@@ -1,0 +1,9 @@
+node_modules/
+.vercel/
+*.log
+.DS_Store
+Thumbs.db
+# personal exports, never commit these
+*.csv
+MyEBirdData*
+ebird_*

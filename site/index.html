@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Birding Wrapped</title>
+<meta name="description" content="Turn your eBird data into shareable story cards: new species, countries, your signature bird and your birding personality. Everything stays in your browser.">
+<meta name="theme-color" content="#0B0F12">
+<link rel="icon" href="/wrapped/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;800&family=Geist+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/wrapped/style.css">
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav">
+  <a class="brand" href="/" aria-label="Himanshu Gupta, home">
+    <svg class="mark" aria-hidden="true" focusable="false" viewBox="0 0 100 100"><g fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><g stroke="currentColor"><circle cx="50" cy="50" r="44"/><path d="M50 67L21.45 83.48M35.28 58.5L6.73 42.02M35.28 41.5V8.54M50 33L78.55 16.52M64.72 41.5L93.27 57.98M64.72 58.5V91.46"/></g><path class="hex" d="M64.72 58.5L50 67L35.28 58.5V41.5L50 33L64.72 41.5Z"/></g></svg>
+    <span>Himanshu Gupta</span>
+  </a>
+  <nav aria-label="Main">
+    <a href="/photography">Gallery</a>
+    <a href="/vlogs">Field logs</a>
+    <a href="/writing">Writing</a>
+    <a href="/about">About</a>
+  </nav>
+</header>
+
+<main id="main">
+<section id="landing" class="landing">
+  <div class="hero">
+    <p class="eyebrow">Birding Wrapped</p>
+    <h1>Your year in birds, as story cards.</h1>
+    <p class="lede">Drop in your eBird data and get your new species, the countries they came from, your signature bird and your birding personality, as cards sized for Instagram Stories. Nothing is uploaded. Your file is read in this browser tab only.</p>
+
+    <label id="drop" class="drop" tabindex="0">
+      <input id="file" type="file" accept=".csv,text/csv" hidden>
+      <strong>Drop your eBird CSV here</strong>
+      <span>or click to choose the file</span>
+    </label>
+
+    <div class="row">
+      <button id="demo" class="btn ghost" type="button">Try a demo year</button>
+    </div>
+    <p id="status" class="status" role="status"></p>
+
+    <details class="how">
+      <summary>Where do I get the file?</summary>
+      <p>Either of these eBird downloads works.</p>
+      <ol>
+        <li><b>Your life list.</b> On eBird, open My eBird, then Life List, then Download (CSV). You get one row per species with the date you first saw it, so the cards show your new species by year.</li>
+        <li><b>All your data.</b> Sign in at <a href="https://ebird.org/downloadMyData" target="_blank" rel="noopener">ebird.org/downloadMyData</a> and press Submit. eBird emails you a zip with <code>MyEBirdData.csv</code>. This adds hours in the field, checklists, your most seen bird and your usual start time.</li>
+      </ol>
+      <p>Other apps work too if their export has a species column and a date column.</p>
+    </details>
+
+    <details class="how paste">
+      <summary>Or paste a list of birds</summary>
+      <p>One bird per line, common or scientific name. Add a date after a comma if you know it, like <code>Blue Jay, 2025-04-12</code>. Birds with no date count in <span id="thisYear"></span>.</p>
+      <textarea id="pasteBox" rows="6" placeholder="Northern Cardinal&#10;Blue Jay, 2025-04-12&#10;Cyanocitta cristata, 12 Apr 2025"></textarea>
+      <div class="row"><button id="pasteGo" class="btn small" type="button">Make my cards</button></div>
+    </details>
+  </div>
+</section>
+
+<section id="viewer" class="viewer" hidden>
+  <div class="bar">
+    <div class="field">
+      <label for="year">Year</label>
+      <select id="year"></select>
+    </div>
+    <button id="restart" class="btn ghost small" type="button">New file</button>
+  </div>
+
+  <div id="deck" class="deck" aria-live="polite">
+    <div id="scaler" class="scaler">
+      <div id="progress" class="progress"></div>
+      <div id="slides"></div>
+      <button id="tapPrev" class="tap prev" aria-label="Previous card"></button>
+      <button id="tapNext" class="tap next" aria-label="Next card"></button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="prev" class="btn ghost" type="button">Back</button>
+    <button id="save" class="btn" type="button">Save this card</button>
+    <button id="saveAll" class="btn ghost" type="button">Save all</button>
+    <button id="share" class="btn" type="button">Share to Instagram</button>
+    <button id="next" class="btn ghost" type="button">Next</button>
+  </div>
+  <p id="vstatus" class="status" role="status"></p>
+  <div id="skipbox" class="skipbox" hidden></div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="credits">
+    <h2>Credits and licences</h2>
+    <ul>
+      <li><b>Bird stickers:</b> <a href="https://github.com/alchaincyf/huashu-bird-sticker" target="_blank" rel="noopener">huashu-bird-sticker</a> by alchaincyf (Huashu), licensed <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. AI generated illustrations, so they can contain errors. Used as published, only scaled and arranged on the cards.</li>
+      <li><b>Taxonomy and conservation status:</b> AviList v2026 (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), with IUCN categories from BirdLife International via AviList.</li>
+      <li><b>Body mass:</b> AVONET (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>).</li>
+      <li><b>English names:</b> IOC World Bird List (<a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>), as packaged in huashu-bird-sticker.</li>
+      <li>Not affiliated with eBird or the Cornell Lab of Ornithology. eBird is their service.</li>
+    </ul>
+    <p>A personal, free project by Himanshu Gupta. Your data stays on your device and is never sent to a server. The stickers load from a public content network, which sees only the sticker file names.</p>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="/wrapped/app.js"></script>
+</body>
+</html>
