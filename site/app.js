@@ -328,7 +328,7 @@ const hourLabel = (h) => {
 };
 const mosaic = (list, cols = 5, max = 20) =>
   `<div class="mosaic${cols === 4 ? " cols4" : cols === 3 ? " cols3" : ""}">${list.slice(0, max).map((b) => img(b)).join("")}</div>`;
-const durText = (h) => (h >= 48 ? `${(h / 24).toFixed(1)} days` : `${fmt(h)} hours`);
+const durBig = (h) => (h >= 48 ? `${(h / 24).toFixed(1)}<span class="unit"> days</span>` : `${fmt(h)}<span class="unit"> hours</span>`);
 
 function buildSlides(s) {
   const out = [];
@@ -364,7 +364,7 @@ function buildSlides(s) {
   out.push(`
     <section class="slide t-moss">
       <p class="k">Time in the field</p>
-      <div class="big md">${s.hours >= 1 ? esc(durText(s.hours)) : fmt(s.nLists)}</div>
+      <div class="big md">${s.hours >= 1 ? durBig(s.hours) : fmt(s.nLists)}</div>
       <p class="sub pop">${s.hours >= 1 ? "spent birding" : "checklists submitted"} across ${fmt(s.nLists)} checklists.</p>
       <div class="chips">
         <div class="chip"><b>${fmt(s.nBirds)}</b>birds counted</div>
@@ -637,6 +637,9 @@ function show(i) {
   renderProgress();
   $("prev").disabled = cur === 0;
   $("next").disabled = cur === slideEls.length - 1;
+  $("tapPrev").classList.toggle("end", cur === 0);
+  $("tapNext").classList.toggle("end", cur === slideEls.length - 1);
+  if (cur !== 0) $("deck").classList.remove("nudge");
 }
 function mountSlides(html) {
   $("slides").innerHTML = html.join("");
@@ -691,6 +694,7 @@ function openViewer() {
   $("year").innerHTML = years.map((x) => `<option value="${x.y}">${x.y} (${fmt(x.n)} ${ROWS.isLife ? "new species" : "checklists"})</option>`).join("");
   $("landing").hidden = true;
   $("viewer").hidden = false;
+  $("deck").classList.add("nudge"); // one gentle hint that the cards can be swiped through
   fit();
   renderYear(years[0].y);
 }
