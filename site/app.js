@@ -637,12 +637,11 @@ function show(i) {
   renderProgress();
   $("prev").disabled = cur === 0;
   $("next").disabled = cur === slideEls.length - 1;
-  syncPicker();
 }
 function mountSlides(html) {
   $("slides").innerHTML = html.join("");
   slideEls = [...$("slides").children];
-  buildPicker();
+  slidesVer++; rendered.clear();
   show(0);
 }
 function fit() {
@@ -722,53 +721,86 @@ function download(blob, name) {
 }
 const cardName = (i) => `birding-wrapped-${YEAR}-${String(i + 1).padStart(2, "0")}.png`;
 
-async function saveCurrent() {
-  if (typeof html2canvas === "undefined") { $("vstatus").textContent = "The image exporter didn't load. Check your connection."; return; }
-  $("vstatus").textContent = "Rendering card…";
-  try {
-    const blob = await toBlob(await capture(slideEls[cur]));
-    download(blob, cardName(cur));
-    $("vstatus").textContent = "Saved.";
-  } catch (e) {
-    $("vstatus").textContent = "Couldn't render the card: " + e.message;
-  }
-}
-// ---- choosing which cards to save or share
+// ---- choosing which cards to share or download (glass dialog)
 let selected = new Set();
+let dlgMode = "share";
+let busy = false;        // saving or sharing in progress
+let preparing = false;   // background rendering in progress
+let slidesVer = 0;       // bumps whenever the cards are rebuilt
+const rendered = new Map(); // "ver:index" -> { name, blob }
+const rkey = (i) => slidesVer + ":" + i;
 const slideTitle = (el) => ((el.querySelector(".k") || {}).textContent || "").trim() || "Card";
+const msg = (t) => { $("dlgStatus").textContent = t; };
 
-function buildPicker() {
-  selected = new Set(slideEls.map((_, i) => i));
-  $("pickList").innerHTML = slideEls.map((el, i) =>
-    '<label class="pick" data-i="' + i + '"><input type="checkbox" checked data-i="' + i + '"><span>' + (i + 1) + ". " + esc(slideTitle(el)) + "</span></label>").join("");
+function openDialog(mode) {
+  if (!slideEls.length) return;
+  dlgMode = mode;
+  selected = new Set([cur]); // the card you're looking at is ticked by default
+  $("dlgTitle").textContent = mode === "share" ? "Share cards" : "Download cards";
+  $("dlgSub").textContent = mode === "share" ? "Choose the cards you want to send." : "Choose the cards to save as images.";
+  $("dlgHint").hidden = mode !== "share";
+  msg("");
+  $("pickList").innerHTML = slideEls.map((el, i) => {
+    const clone = el.cloneNode(true);
+    clone.classList.add("active");
+    return '<label class="pick" data-i="' + i + '"><input type="checkbox" data-i="' + i + '">' +
+      '<span class="thumb"><span class="thumb-in">' + clone.outerHTML + '</span><span class="tick" aria-hidden="true"></span></span>' +
+      '<span class="cap">' + (i + 1) + ". " + esc(slideTitle(el)) + "</span></label>";
+  }).join("");
   syncPicker();
-}
-function syncPicker() {
-  document.querySelectorAll("#pickList .pick").forEach((l) => l.classList.toggle("now", +l.dataset.i === cur));
-  document.querySelectorAll("#pickList input").forEach((c) => { c.checked = selected.has(+c.dataset.i); });
-  const n = selected.size;
-  $("dlSel").textContent = n > 1 ? "Download " + n + " cards" : "Download card";
-  $("shareSel").textContent = n > 1 ? "Share " + n + " cards" : "Share card";
-  $("dlSel").disabled = $("shareSel").disabled = n === 0;
+  $("dlg").showModal();
+  prepare();
+  const here = $("pickList").querySelector('[data-i="' + cur + '"]');
+  if (here && here.scrollIntoView) here.scrollIntoView({ block: "nearest" });
 }
 
-async function renderSelected() {
-  if (typeof html2canvas === "undefined") throw new Error("The image exporter didn't load. Check your connection.");
-  const keep = cur, idx = [...selected].sort((x, y) => x - y), out = [];
+function syncPicker() {
+  const n = selected.size, all = n === slideEls.length;
+  document.querySelectorAll("#pickList .pick").forEach((l) => {
+    const on = selected.has(+l.dataset.i);
+    l.classList.toggle("on", on);
+    l.querySelector("input").checked = on;
+  });
+  $("pickAll").textContent = all ? "Clear all" : "Select all";
+  $("pickAll").disabled = busy;
+  $("pickCount").textContent = n + " of " + slideEls.length + " selected";
+  const ready = [...selected].filter((i) => rendered.has(rkey(i))).length;
+  const verb = dlgMode === "share" ? "Share" : "Download";
+  let label = verb + " " + n + (n === 1 ? " card" : " cards");
+  if (busy) label = "Working…";
+  else if (n > 0 && ready < n) label = "Preparing " + (ready + 1 > n ? n : ready + 1) + " of " + n + "…";
+  $("dlgGo").textContent = label;
+  $("dlgGo").disabled = busy || n === 0 || ready < n;
+  $("dlgCancel").disabled = busy;
+  $("dlgClose").disabled = busy;
+}
+
+// Renders the ticked cards one by one into the cache while the dialog is open.
+// Share has to be called straight after a tap (browsers drop the permission after a few seconds), so it can't wait for rendering.
+async function prepare() {
+  if (preparing) return;
+  if (typeof html2canvas === "undefined") { msg("The image exporter didn't load. Check your connection."); return; }
+  preparing = true; msg(""); syncPicker();
+  const keep = cur;
   try {
-    for (let k = 0; k < idx.length; k++) {
-      $("vstatus").textContent = "Rendering card " + (k + 1) + " of " + idx.length + "…";
-      show(idx[k]);
+    while ($("dlg").open) {
+      const next = [...selected].sort((x, y) => x - y).find((i) => !rendered.has(rkey(i)));
+      if (next === undefined) break;
+      show(next);
       await new Promise((r) => setTimeout(r, 650)); // let entry animations finish
-      out.push({ name: cardName(idx[k]), blob: await toBlob(await capture(slideEls[idx[k]])) });
+      rendered.set(rkey(next), { name: cardName(next), blob: await toBlob(await capture(slideEls[next])) });
+      syncPicker();
     }
-  } finally { show(keep); }
-  return out;
+  } catch (e) {
+    msg("Couldn't render the cards: " + e.message);
+  } finally {
+    show(keep); preparing = false; syncPicker();
+  }
 }
 
 // one card downloads as a PNG, several as one ZIP (or one by one if the ZIP library didn't load)
 async function saveFiles(list) {
-  if (list.length === 1) { download(list[0].blob, list[0].name); return "Saved."; }
+  if (list.length === 1) { download(list[0].blob, list[0].name); return "Saved 1 card."; }
   if (typeof JSZip !== "undefined") {
     const zip = new JSZip();
     list.forEach((f) => zip.file(f.name, f.blob));
@@ -779,25 +811,27 @@ async function saveFiles(list) {
   return "Downloaded " + list.length + " cards.";
 }
 
-async function downloadSelected() {
-  try { $("vstatus").textContent = await saveFiles(await renderSelected()); }
-  catch (e) { $("vstatus").textContent = "Couldn't render the cards: " + e.message; }
-}
-
-async function shareSelected() {
-  try {
-    const list = await renderSelected();
+async function runDialog() {
+  const list = [...selected].sort((x, y) => x - y).map((i) => rendered.get(rkey(i))).filter(Boolean);
+  if (!list.length || list.length !== selected.size) return;
+  if (dlgMode === "share") {
     const files = list.map((f) => new File([f.blob], f.name, { type: "image/png" }));
     if (navigator.canShare && navigator.canShare({ files })) {
-      await navigator.share({ files, title: "My " + YEAR + " in birds" });
-      $("vstatus").textContent = "";
-    } else {
-      // Desktop browsers can't hand files to Instagram, so save them instead
-      const msg = await saveFiles(list);
-      $("vstatus").textContent = msg + " This browser can't share straight to Instagram. Open this page on your phone to share from there.";
+      try { await navigator.share({ files, title: "My " + YEAR + " in birds" }); $("dlg").close(); $("vstatus").textContent = ""; }
+      catch (e) { if (e.name !== "AbortError") msg("Couldn't share: " + e.message); } // cancelling the share sheet keeps the dialog open
+      return;
     }
+  }
+  busy = true; syncPicker();
+  try {
+    let note = await saveFiles(list);
+    if (dlgMode === "share") note += " This browser can't share straight to Instagram, so I saved them instead. Open this page on your phone to share from there.";
+    $("dlg").close();
+    $("vstatus").textContent = note;
   } catch (e) {
-    $("vstatus").textContent = e.name === "AbortError" ? "" : "Couldn't share: " + e.message;
+    msg("Couldn't finish: " + e.message);
+  } finally {
+    busy = false; syncPicker();
   }
 }
 
@@ -907,16 +941,22 @@ function init() {
   $("next").addEventListener("click", () => show(cur + 1));
   $("tapPrev").addEventListener("click", () => show(cur - 1));
   $("tapNext").addEventListener("click", () => show(cur + 1));
-  $("save").addEventListener("click", saveCurrent);
-  $("dlSel").addEventListener("click", downloadSelected);
-  $("shareSel").addEventListener("click", shareSelected);
+  $("share").addEventListener("click", () => openDialog("share"));
+  $("download").addEventListener("click", () => openDialog("download"));
+  $("dlgGo").addEventListener("click", runDialog);
+  $("dlgCancel").addEventListener("click", () => $("dlg").close());
+  $("dlgClose").addEventListener("click", () => $("dlg").close());
+  $("pickAll").addEventListener("click", () => {
+    selected = selected.size === slideEls.length ? new Set() : new Set(slideEls.map((_, i) => i));
+    syncPicker(); prepare();
+  });
   $("pickList").addEventListener("change", (e) => {
     const i = +e.target.dataset.i;
     if (e.target.checked) selected.add(i); else selected.delete(i);
-    syncPicker();
+    syncPicker(); prepare();
   });
-  $("pickAll").addEventListener("click", () => { selected = new Set(slideEls.map((_, i) => i)); syncPicker(); });
-  $("pickNone").addEventListener("click", () => { selected = new Set(); syncPicker(); });
+  $("dlg").addEventListener("cancel", (e) => { if (busy) e.preventDefault(); }); // Esc while rendering
+  $("dlg").addEventListener("click", (e) => { if (e.target === $("dlg") && !busy) $("dlg").close(); }); // click outside
   $("thisYear").textContent = new Date().getFullYear();
   $("pasteGo").addEventListener("click", async () => {
     const txt = $("pasteBox").value;

@@ -85,27 +85,36 @@
 
   <div class="controls">
     <button id="prev" class="btn ghost" type="button">Back</button>
+    <button id="share" class="btn" type="button">Share to Instagram</button>
+    <button id="download" class="btn ghost" type="button">Download</button>
     <button id="next" class="btn ghost" type="button">Next</button>
-  </div>
-
-  <div class="picker">
-    <div class="picker-head">
-      <h2>Choose cards to save or share</h2>
-      <span><button id="pickAll" class="link" type="button">All</button> · <button id="pickNone" class="link" type="button">None</button></span>
-    </div>
-    <div id="pickList" class="pick-list"></div>
-    <div class="controls">
-      <button id="save" class="btn ghost" type="button">Save this card</button>
-      <button id="dlSel" class="btn ghost" type="button">Download cards</button>
-      <button id="shareSel" class="btn" type="button">Share cards</button>
-    </div>
-    <p class="hint">Instagram Stories takes one image at a time. To post several, save them to your photos first (the phone's share sheet has a Save option), then add them in Instagram one by one.</p>
   </div>
   <p id="vstatus" class="status" role="status"></p>
   <div id="skipbox" class="skipbox" hidden></div>
   <p class="cta">Like your cards? Share them and tag <a href="https://www.instagram.com/himanshuguptapro/" target="_blank" rel="noopener">@himanshuguptapro</a> on Instagram. I'd love to see your year.</p>
 </section>
 </main>
+
+<dialog id="dlg" class="glass" aria-labelledby="dlgTitle">
+  <div class="dlg-head">
+    <div>
+      <h2 id="dlgTitle">Share cards</h2>
+      <p id="dlgSub" class="dlg-sub"></p>
+    </div>
+    <button id="dlgClose" class="x" type="button" aria-label="Close">&times;</button>
+  </div>
+  <div class="dlg-bar">
+    <button id="pickAll" class="link" type="button">Select all</button>
+    <span id="pickCount"></span>
+  </div>
+  <div id="pickList" class="thumbs"></div>
+  <p id="dlgHint" class="hint">Instagram Stories takes one image at a time. To post several, save them to your photos from the share sheet first, then add them in Instagram one by one.</p>
+  <p id="dlgStatus" class="dlg-status" role="status"></p>
+  <div class="dlg-actions">
+    <button id="dlgCancel" class="btn ghost" type="button">Cancel</button>
+    <button id="dlgGo" class="btn" type="button">Share 1 card</button>
+  </div>
+</dialog>
 
 <footer class="footer">
   <div class="credits">
