@@ -85,10 +85,21 @@
 
   <div class="controls">
     <button id="prev" class="btn ghost" type="button">Back</button>
-    <button id="save" class="btn" type="button">Save this card</button>
-    <button id="saveAll" class="btn ghost" type="button">Save all</button>
-    <button id="share" class="btn" type="button">Share to Instagram</button>
     <button id="next" class="btn ghost" type="button">Next</button>
+  </div>
+
+  <div class="picker">
+    <div class="picker-head">
+      <h2>Choose cards to save or share</h2>
+      <span><button id="pickAll" class="link" type="button">All</button> · <button id="pickNone" class="link" type="button">None</button></span>
+    </div>
+    <div id="pickList" class="pick-list"></div>
+    <div class="controls">
+      <button id="save" class="btn ghost" type="button">Save this card</button>
+      <button id="dlSel" class="btn ghost" type="button">Download cards</button>
+      <button id="shareSel" class="btn" type="button">Share cards</button>
+    </div>
+    <p class="hint">Instagram Stories takes one image at a time. To post several, save them to your photos first (the phone's share sheet has a Save option), then add them in Instagram one by one.</p>
   </div>
   <p id="vstatus" class="status" role="status"></p>
   <div id="skipbox" class="skipbox" hidden></div>
@@ -112,6 +123,7 @@
 </footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="/wrapped/app.js"></script>
 </body>
 </html>

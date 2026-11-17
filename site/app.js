@@ -637,10 +637,12 @@ function show(i) {
   renderProgress();
   $("prev").disabled = cur === 0;
   $("next").disabled = cur === slideEls.length - 1;
+  syncPicker();
 }
 function mountSlides(html) {
   $("slides").innerHTML = html.join("");
   slideEls = [...$("slides").children];
+  buildPicker();
   show(0);
 }
 function fit() {
@@ -731,36 +733,68 @@ async function saveCurrent() {
     $("vstatus").textContent = "Couldn't render the card: " + e.message;
   }
 }
-async function saveAll() {
-  if (typeof html2canvas === "undefined") { $("vstatus").textContent = "The image exporter didn't load. Check your connection."; return; }
-  const keep = cur;
-  try {
-    for (let i = 0; i < slideEls.length; i++) {
-      $("vstatus").textContent = `Rendering card ${i + 1} of ${slideEls.length}…`;
-      show(i);
-      await new Promise((r) => setTimeout(r, 650)); // let entry animations finish
-      download(await toBlob(await capture(slideEls[i])), cardName(i));
-      await new Promise((r) => setTimeout(r, 250));
-    }
-    $("vstatus").textContent = "All cards saved.";
-  } catch (e) {
-    $("vstatus").textContent = "Couldn't render all cards: " + e.message;
-  }
-  show(keep);
+// ---- choosing which cards to save or share
+let selected = new Set();
+const slideTitle = (el) => ((el.querySelector(".k") || {}).textContent || "").trim() || "Card";
+
+function buildPicker() {
+  selected = new Set(slideEls.map((_, i) => i));
+  $("pickList").innerHTML = slideEls.map((el, i) =>
+    '<label class="pick" data-i="' + i + '"><input type="checkbox" checked data-i="' + i + '"><span>' + (i + 1) + ". " + esc(slideTitle(el)) + "</span></label>").join("");
+  syncPicker();
 }
-async function shareCurrent() {
-  if (typeof html2canvas === "undefined") { $("vstatus").textContent = "The image exporter didn't load. Check your connection."; return; }
-  $("vstatus").textContent = "Rendering card…";
+function syncPicker() {
+  document.querySelectorAll("#pickList .pick").forEach((l) => l.classList.toggle("now", +l.dataset.i === cur));
+  document.querySelectorAll("#pickList input").forEach((c) => { c.checked = selected.has(+c.dataset.i); });
+  const n = selected.size;
+  $("dlSel").textContent = n > 1 ? "Download " + n + " cards" : "Download card";
+  $("shareSel").textContent = n > 1 ? "Share " + n + " cards" : "Share card";
+  $("dlSel").disabled = $("shareSel").disabled = n === 0;
+}
+
+async function renderSelected() {
+  if (typeof html2canvas === "undefined") throw new Error("The image exporter didn't load. Check your connection.");
+  const keep = cur, idx = [...selected].sort((x, y) => x - y), out = [];
   try {
-    const blob = await toBlob(await capture(slideEls[cur]));
-    const file = new File([blob], cardName(cur), { type: "image/png" });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: `My ${YEAR} in birds` });
+    for (let k = 0; k < idx.length; k++) {
+      $("vstatus").textContent = "Rendering card " + (k + 1) + " of " + idx.length + "…";
+      show(idx[k]);
+      await new Promise((r) => setTimeout(r, 650)); // let entry animations finish
+      out.push({ name: cardName(idx[k]), blob: await toBlob(await capture(slideEls[idx[k]])) });
+    }
+  } finally { show(keep); }
+  return out;
+}
+
+// one card downloads as a PNG, several as one ZIP (or one by one if the ZIP library didn't load)
+async function saveFiles(list) {
+  if (list.length === 1) { download(list[0].blob, list[0].name); return "Saved."; }
+  if (typeof JSZip !== "undefined") {
+    const zip = new JSZip();
+    list.forEach((f) => zip.file(f.name, f.blob));
+    download(await zip.generateAsync({ type: "blob" }), "birding-wrapped-" + YEAR + ".zip");
+    return "Downloaded " + list.length + " cards as one ZIP file.";
+  }
+  for (const f of list) { download(f.blob, f.name); await new Promise((r) => setTimeout(r, 250)); }
+  return "Downloaded " + list.length + " cards.";
+}
+
+async function downloadSelected() {
+  try { $("vstatus").textContent = await saveFiles(await renderSelected()); }
+  catch (e) { $("vstatus").textContent = "Couldn't render the cards: " + e.message; }
+}
+
+async function shareSelected() {
+  try {
+    const list = await renderSelected();
+    const files = list.map((f) => new File([f.blob], f.name, { type: "image/png" }));
+    if (navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share({ files, title: "My " + YEAR + " in birds" });
       $("vstatus").textContent = "";
     } else {
-      // Desktop browsers can't hand files to Instagram, so save the card instead
-      download(blob, cardName(cur));
-      $("vstatus").textContent = "This browser can't share straight to Instagram, so I saved the card. Open this page on your phone to share it directly to Stories.";
+      // Desktop browsers can't hand files to Instagram, so save them instead
+      const msg = await saveFiles(list);
+      $("vstatus").textContent = msg + " This browser can't share straight to Instagram. Open this page on your phone to share from there.";
     }
   } catch (e) {
     $("vstatus").textContent = e.name === "AbortError" ? "" : "Couldn't share: " + e.message;
@@ -874,8 +908,15 @@ function init() {
   $("tapPrev").addEventListener("click", () => show(cur - 1));
   $("tapNext").addEventListener("click", () => show(cur + 1));
   $("save").addEventListener("click", saveCurrent);
-  $("saveAll").addEventListener("click", saveAll);
-  $("share").addEventListener("click", shareCurrent);
+  $("dlSel").addEventListener("click", downloadSelected);
+  $("shareSel").addEventListener("click", shareSelected);
+  $("pickList").addEventListener("change", (e) => {
+    const i = +e.target.dataset.i;
+    if (e.target.checked) selected.add(i); else selected.delete(i);
+    syncPicker();
+  });
+  $("pickAll").addEventListener("click", () => { selected = new Set(slideEls.map((_, i) => i)); syncPicker(); });
+  $("pickNone").addEventListener("click", () => { selected = new Set(); syncPicker(); });
   $("thisYear").textContent = new Date().getFullYear();
   $("pasteGo").addEventListener("click", async () => {
     const txt = $("pasteBox").value;

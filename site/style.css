@@ -110,6 +110,17 @@ select { font: 500 14px var(--sans); padding: 6px 10px; border-radius: 10px; bor
 .tap:focus-visible { outline: 2px solid rgba(255,255,255,.7); outline-offset: -4px; }
 
 .cta { max-width: 440px; margin: 20px 0 0; text-align: center; font-size: 14px; color: var(--mut); }
+.picker { width: 100%; max-width: 440px; margin-top: 20px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.picker-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.picker-head h2 { font: 600 14px/20px var(--sans); margin: 0; }
+.picker-head span { font-size: 13px; color: var(--mut); }
+.link { background: none; border: 0; padding: 0; font: 600 13px var(--sans); color: var(--moss-text); cursor: pointer; text-decoration: underline; }
+.pick-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+.pick { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 18px; color: var(--mut); cursor: pointer; padding: 4px 6px; border-radius: 8px; }
+.pick.now { background: var(--raised); color: var(--fg); }
+.pick input { accent-color: var(--moss); width: 16px; height: 16px; flex: none; }
+.hint { margin: 12px 0 0; font-size: 12px; line-height: 18px; color: var(--mut); }
+.picker .controls { margin-top: 14px; }
 .skipbox { width: 100%; max-width: 440px; margin-top: 8px; font-size: 13px; line-height: 20px; color: var(--mut); }
 .skipbox summary { cursor: pointer; color: var(--fg); font-weight: 600; }
 .skipbox ul { padding-left: 18px; margin: 8px 0; display: grid; gap: 8px; }
