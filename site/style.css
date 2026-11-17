@@ -272,9 +272,10 @@ dialog .hint { margin: 10px 0 0; }
 .bubble .bl { display: flex; gap: 8px; padding: 3px 0; border-top: 1px solid rgba(255,255,255,.12); }
 .bubble .bl > span:first-child { flex: none; width: 60px; color: rgba(255,255,255,.62); white-space: nowrap; }
 .bubble .bl .v { min-width: 0; }
+.bubble .bl .v.st { display: inline-flex; align-items: center; gap: 7px; }
 .bubble .bl b.yes { color: #9ee6c0; font-weight: 600; }
 .bubble .bf { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.12); color: rgba(255,255,255,.78); font-size: 11px; }
-.dot { display: inline-block; width: 8px; height: 8px; border-radius: 9999px; margin: 0 6px 0 0; vertical-align: 0; background: #8a949c; }
+.dot { flex: none; display: inline-block; width: 8px; height: 8px; border-radius: 9999px; margin: 0; background: #8a949c; }
 .dot.iu-LC { background: #5fd08f; } .dot.iu-NT { background: #c6d85a; } .dot.iu-VU { background: #f2c14e; }
 .dot.iu-EN { background: #f08a3c; } .dot.iu-CR { background: #ee5a4d; } .dot.iu-EW, .dot.iu-EX { background: #b34ad0; }
 @keyframes bubbleIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }

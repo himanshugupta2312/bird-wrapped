@@ -661,7 +661,7 @@ function bubbleHtml(bird) {
     lines.push('<p class="bl"><span>This year</span><span class="v">On ' + fmt(e.lists.size) + (e.lists.size === 1 ? " checklist" : " checklists") + (e.total ? ", " + fmt(e.total) + " counted" : "") + "</span></p>");
   }
   if (IUCN_LABEL[bird.iucn]) {
-    lines.push('<p class="bl"><span>Status</span><span class="v"><i class="dot iu-' + esc(bird.iucn) + '"></i>' + esc(IUCN_LABEL[bird.iucn]) + "</span></p>");
+    lines.push('<p class="bl"><span>Status</span><span class="v st"><i class="dot iu-' + esc(bird.iucn) + '"></i>' + esc(IUCN_LABEL[bird.iucn]) + "</span></p>");
   }
   const facts = [];
   if (bird.massG != null) facts.push(bird.massG >= 1000 ? (bird.massG / 1000).toFixed(1) + " kg" : bird.massG.toFixed(bird.massG < 10 ? 1 : 0) + " g");
