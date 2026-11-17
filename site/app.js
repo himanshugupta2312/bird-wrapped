@@ -38,7 +38,7 @@ async function loadBirds() {
 
 const stickerUrl = (b) => (b && b.sticker ? CDN + b.sticker.split("/").map(encodeURIComponent).join("/") : "");
 const img = (b, cls = "", extra = "") =>
-  b && b.sticker ? `<img ${cls ? `class="${cls}"` : ""} ${extra} crossorigin="anonymous" alt="${esc(b.en)}" src="${stickerUrl(b)}">` : "";
+  b && b.sticker ? `<img ${cls ? `class="${cls}"` : ""} ${extra} data-b="${b.i}" tabindex="0" role="button" crossorigin="anonymous" alt="${esc(b.en)}, show details" src="${stickerUrl(b)}">` : "";
 
 /* ------------------------------------------------------------------- csv */
 
@@ -200,10 +200,10 @@ function analyze(rows, year) {
   }
   for (const d of rows.dropped || []) noteSkip(d, d.reason, d.name);
 
-  const firstSeen = new Map();
+  const firstSeen = new Map(), firstRow = new Map();
   for (const o of obs) {
     const f = firstSeen.get(o.b.i);
-    if (!f || o.date < f) firstSeen.set(o.b.i, o.date);
+    if (!f || o.date < f) { firstSeen.set(o.b.i, o.date); firstRow.set(o.b.i, o); }
   }
 
   const yr = obs.filter((o) => o.date.startsWith(year));
@@ -311,7 +311,7 @@ function analyze(rows, year) {
   else persona = { name: "The Steady Observer", why: "You show up, you look up, you write it down." };
 
   return {
-    life, topCountries, lifeBefore, lifeTotal: lifeBefore + lifers.length,
+    firstRow, byIdx: new Map(species.map((e) => [e.b.i, e])), life, topCountries, lifeBefore, lifeTotal: lifeBefore + lifers.length,
     year, skipped, skipInfo, totalRows: allYearRows.length + (rows.dropped || []).filter((d) => d.date.startsWith(year)).length, nLists: lists.size, nSpecies: species.length, nBirds: birds,
     hours, km, nLocs: locCount.size, countries: countries.size, topLoc, species, byFreq, byCount, families,
     biggest, smallest, threatened, lifers, months, peakMonth, medianHour, streak, streakEnd, persona,
@@ -626,12 +626,84 @@ function buildLifeSlides(s, mark, spBirds) {
 }
 const sp0 = (e) => e.b;
 
+
+/* ---------------------------------------------------------- bird bubble */
+
+const IUCN_LABEL = { LC: "Least Concern", NT: "Near Threatened", VU: "Vulnerable", EN: "Endangered", CR: "Critically Endangered", EW: "Extinct in the Wild", EX: "Extinct", DD: "Data Deficient" };
+const MIG_LABEL = { sedentary: "Resident", "partially migratory": "Partial migrant", migratory: "Migrant" };
+const dFull = (d) => (+d.slice(8, 10)) + " " + MONTH_NAMES[+d.slice(5, 7) - 1].slice(0, 3) + " " + d.slice(0, 4);
+let CURRENT = null;      // stats for the year on screen
+let bubbleFor = null;    // the sticker the bubble points at
+
+function hideBubble() {
+  const b = $("bubble");
+  if (b) b.hidden = true;
+  if (bubbleFor) bubbleFor.classList.remove("picked");
+  bubbleFor = null;
+}
+
+function bubbleHtml(bird) {
+  const st = CURRENT;
+  const first = st.firstRow.get(bird.i);
+  const e = st.byIdx.get(bird.i);
+  const lines = [];
+  lines.push('<p class="bn">' + esc(bird.en) + "</p>");
+  lines.push('<p class="bs">' + esc(bird.sci) + (bird.familyEn ? " · " + esc(bird.familyEn) : "") + "</p>");
+  if (first) {
+    const place = cleanLoc(first.loc);
+    const cc = first.state ? regionName(first.state.split("-")[0]) : "";
+    const where = [place, cc && !place.includes(cc) ? cc : ""].filter(Boolean).join(", ");
+    lines.push('<p class="bl"><span>First seen</span><span class="v">' + esc(dFull(first.date)) + (where ? " · " + esc(where) : "") + "</span></p>");
+    const lifer = first.date.startsWith(st.year);
+    lines.push('<p class="bl"><span>Lifer</span><span class="v">' + (lifer ? '<b class="yes">Yes, new for you in ' + esc(st.year) + "</b>" : "No, first seen " + esc(first.date.slice(0, 4))) + "</span></p>");
+  }
+  if (e && !st.life) {
+    lines.push('<p class="bl"><span>This year</span><span class="v">On ' + fmt(e.lists.size) + (e.lists.size === 1 ? " checklist" : " checklists") + (e.total ? ", " + fmt(e.total) + " counted" : "") + "</span></p>");
+  }
+  if (IUCN_LABEL[bird.iucn]) {
+    lines.push('<p class="bl"><span>Status</span><span class="v"><i class="dot iu-' + esc(bird.iucn) + '"></i>' + esc(IUCN_LABEL[bird.iucn]) + "</span></p>");
+  }
+  const facts = [];
+  if (bird.massG != null) facts.push(bird.massG >= 1000 ? (bird.massG / 1000).toFixed(1) + " kg" : bird.massG.toFixed(bird.massG < 10 ? 1 : 0) + " g");
+  if (bird.habitat) facts.push(bird.habitat);
+  if (MIG_LABEL[bird.migration]) facts.push(MIG_LABEL[bird.migration]);
+  if (facts.length) lines.push('<p class="bf">' + facts.map(esc).join(" · ") + "</p>");
+  return lines.join("");
+}
+
+function showBubble(imgEl) {
+  if (!CURRENT || !BIRDS) return;
+  if (bubbleFor === imgEl) { hideBubble(); return; }
+  const bird = BIRDS[+imgEl.dataset.b];
+  if (!bird) return;
+  hideBubble();
+  const bub = $("bubble");
+  bub.innerHTML = bubbleHtml(bird);
+  bub.hidden = false;
+  bub.classList.remove("below");
+  const W = bub.offsetWidth, H = bub.offsetHeight;
+  const sr = $("scaler").getBoundingClientRect(), ir = imgEl.getBoundingClientRect();
+  const sc = sr.width / 360;
+  const cx = (ir.left + ir.width / 2 - sr.left) / sc, top = (ir.top - sr.top) / sc, bottom = (ir.bottom - sr.top) / sc;
+  const x = Math.max(10, Math.min(350 - W, cx - W / 2));
+  const above = top - H - 14 >= 26;
+  let y = above ? top - H - 12 : Math.min(bottom + 12, 640 - H - 10);
+  y = Math.max(26, y);
+  bub.classList.toggle("below", !above);
+  bub.style.left = x + "px";
+  bub.style.top = y + "px";
+  bub.style.setProperty("--tx", Math.max(18, Math.min(W - 18, cx - x)) + "px");
+  imgEl.classList.add("picked");
+  bubbleFor = imgEl;
+}
+
 /* --------------------------------------------------------------- viewer */
 
 function renderProgress() {
   $("progress").innerHTML = slideEls.map((_, i) => `<i class="${i <= cur ? "done" : ""}"></i>`).join("");
 }
 function show(i) {
+  hideBubble();
   cur = Math.max(0, Math.min(slideEls.length - 1, i));
   slideEls.forEach((el, k) => el.classList.toggle("active", k === cur));
   renderProgress();
@@ -663,6 +735,7 @@ function renderYear(year) {
   }
   $("vstatus").textContent = "";
   renderSkips(stats);
+  CURRENT = stats;
   mountSlides(buildSlides(stats));
 }
 
@@ -747,11 +820,13 @@ function openDialog(mode) {
   $("pickList").innerHTML = slideEls.map((el, i) => {
     const clone = el.cloneNode(true);
     clone.classList.add("active");
+    clone.querySelectorAll("img").forEach((im) => { im.removeAttribute("tabindex"); im.removeAttribute("role"); im.removeAttribute("data-b"); });
     return '<label class="pick" data-i="' + i + '"><input type="checkbox" data-i="' + i + '">' +
       '<span class="thumb"><span class="thumb-in">' + clone.outerHTML + '</span><span class="tick" aria-hidden="true"></span></span>' +
       '<span class="cap">' + (i + 1) + ". " + esc(slideTitle(el)) + "</span></label>";
   }).join("");
   syncPicker();
+  hideBubble();
   $("dlg").showModal();
   prepare();
   const here = $("pickList").querySelector('[data-i="' + cur + '"]');
@@ -945,6 +1020,15 @@ function init() {
   $("next").addEventListener("click", () => show(cur + 1));
   $("tapPrev").addEventListener("click", () => show(cur - 1));
   $("tapNext").addEventListener("click", () => show(cur + 1));
+  $("slides").addEventListener("click", (e) => {
+    const t = e.target.closest ? e.target.closest("img[data-b]") : null;
+    if (t) { e.stopPropagation(); showBubble(t); }
+  });
+  $("slides").addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("img[data-b]")) { e.preventDefault(); showBubble(e.target); }
+  });
+  $("tapPrev").addEventListener("pointerdown", hideBubble);
+  $("tapNext").addEventListener("pointerdown", hideBubble);
   $("share").addEventListener("click", () => openDialog("share"));
   $("download").addEventListener("click", () => openDialog("download"));
   $("dlgGo").addEventListener("click", runDialog);
@@ -970,6 +1054,7 @@ function init() {
   });
 
   document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideBubble();
     if ($("viewer").hidden || e.target.tagName === "SELECT") return;
     if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); show(cur + 1); }
     if (e.key === "ArrowLeft") show(cur - 1);
