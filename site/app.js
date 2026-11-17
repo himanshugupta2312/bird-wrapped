@@ -484,7 +484,8 @@ function buildSlides(s) {
         ${s.hours >= 1 ? `<div class="chip"><b>${fmt(s.hours)} h</b>in the field</div>` : ""}
         ${s.lifers.length ? `<div class="chip"><b>${fmt(s.lifers.length)}</b>new species</div>` : ""}
       </div>
-      <p class="foot" style="margin-top:auto">Stickers: huashu-bird-sticker (CC BY 4.0, AI-generated). Made with Birding Wrapped.</p>
+      <p class="foot" style="margin-top:auto;font-size:13px;line-height:18px;opacity:.95">Made with Birding Wrapped. Follow the creator on Instagram <b>@himanshuguptapro</b></p>
+      <p class="foot" style="margin-top:8px">Stickers: huashu-bird-sticker (CC BY 4.0, AI-generated).</p>
     </section>`);
 
   return out;
@@ -618,7 +619,8 @@ function buildLifeSlides(s, mark, spBirds) {
         ${s.countries ? `<div class="chip"><b>${s.countries}</b>${s.countries === 1 ? "country" : "countries"}</div>` : ""}
         ${s.families.length ? `<div class="chip"><b>${s.families.length}</b>families</div>` : ""}
       </div>
-      <p class="foot" style="margin-top:auto">Stickers: huashu-bird-sticker (CC BY 4.0, AI-generated). Made with Birding Wrapped.</p>
+      <p class="foot" style="margin-top:auto;font-size:13px;line-height:18px;opacity:.95">Made with Birding Wrapped. Follow the creator on Instagram <b>@himanshuguptapro</b></p>
+      <p class="foot" style="margin-top:8px">Stickers: huashu-bird-sticker (CC BY 4.0, AI-generated).</p>
     </section>`);
   return out;
 }
