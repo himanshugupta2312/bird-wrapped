@@ -1247,38 +1247,43 @@ function parsePasted(text) {
 
 /* ------------------------------------------------------------------ demo */
 
+// The demo behaves like an eBird life list: one row per species with the date it was first seen,
+// so it shows new species only, the same as a real life list file does.
 function demoRows() {
   let seed = 20260101;
   const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
   const year = new Date().getFullYear() - 1;
-  const common = BIRDS.filter((b) => b.sticker && b.massG != null && /Passeriformes|Anseriformes|Columbiformes|Piciformes|Charadriiformes|Strigiformes|Accipitriformes|Apodiformes/.test(b.order));
-  const pick = [];
+  const pool = BIRDS.filter((b) => b.sticker && b.massG != null);
+  const threatened = pool.filter((b) => b.iucn === "VU" || b.iucn === "EN" || b.iucn === "CR");
   const used = new Set();
-  while (pick.length < 240) {
-    const b = common[Math.floor(rnd() * common.length)];
-    if (!used.has(b.i)) { used.add(b.i); pick.push(b); }
-  }
-  const places = [["Willow Creek Marsh", "US-CA"], ["Ridge Trail", "US-CA"], ["Harbor Point", "US-WA"], ["Backyard", "US-CA"]];
-  const rows = [];
-  const nLists = 70;
-  for (let k = 0; k < nLists; k++) {
-    const month = Math.min(11, Math.floor(Math.pow(rnd(), 0.8) * 12));
-    const date = `${year}-${String(month + 1).padStart(2, "0")}-${String(1 + Math.floor(rnd() * 27)).padStart(2, "0")}`;
-    const hour = rnd() < 0.7 ? 6 + rnd() * 2.5 : 8 + rnd() * 9;
-    const p = places[rnd() < 0.5 ? 0 : Math.floor(rnd() * places.length)];
-    const dur = 30 + Math.floor(rnd() * 150);
-    const dist = Math.round(rnd() * 60) / 10;
-    const n = 12 + Math.floor(rnd() * 30);
-    const used2 = new Set();
-    for (let j = 0; j < n; j++) {
-      const b = pick[Math.floor(Math.pow(rnd(), 1.7) * pick.length)];
-      if (used2.has(b.i)) continue;
-      used2.add(b.i);
-      rows.push({ sid: "S" + k, en: b.en, sci: b.sci, count: 1 + Math.floor(rnd() * 8), state: p[1], loc: p[0], date, hour, dur, dist });
+  const take = (n, from) => {
+    const out = [];
+    while (out.length < n) {
+      const b = from[Math.floor(rnd() * from.length)];
+      if (!used.has(b.i)) { used.add(b.i); out.push(b); }
     }
-  }
-  // some older history so only part of the list counts as new this year
-  pick.slice(0, 90).forEach((b, i) => rows.push({ sid: "H" + i, en: b.en, sci: b.sci, count: 1, state: "US-CA", loc: "Old patch", date: `${year - 1}-0${1 + (i % 9)}-10`, hour: 8, dur: 60, dist: 1 }));
+    return out;
+  };
+  // where the demo year's new birds came from: several places in four countries
+  const places = [
+    ["Willow Creek Marsh", "US-CA", 3], ["Ridge Trail", "US-CA", 2], ["Harbor Point", "US-WA", 1],
+    ["Rainforest Lodge", "CR-A", 4], ["Cloud Forest Reserve", "CR-P", 3],
+    ["Lakeside Wetland", "IN-KA", 2], ["Hill Station Trail", "IN-KA", 1], ["Pantanal Camp", "BR-MT", 4],
+  ];
+  const weighted = places.flatMap((p) => Array(p[2]).fill(p));
+  const rows = [];
+  rows.isLife = true;
+  rows.dropped = [];
+  const add = (b, date, p) => rows.push({ sid: "S" + rows.length, en: b.en, sci: b.sci, count: 1 + Math.floor(rnd() * 6), state: p[1], loc: p[0], date, hour: null, dur: 0, dist: 0 });
+  const iso = (y, m, d) => y + "-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+  // this year: 148 ordinary birds plus a few threatened ones, with a busy stretch in the middle of the year
+  take(144, pool).concat(take(4, threatened)).forEach((b) => {
+    const month = Math.min(12, 1 + Math.floor(Math.pow(rnd(), 0.9) * 12));
+    add(b, iso(year, month, 1 + Math.floor(rnd() * 27)), weighted[Math.floor(rnd() * weighted.length)]);
+  });
+  // earlier years, so the life list grows from a number that is not zero
+  take(55, pool).forEach((b) => add(b, iso(year - 1, 1 + Math.floor(rnd() * 12), 1 + Math.floor(rnd() * 27)), places[Math.floor(rnd() * 3)]));
+  take(25, pool).forEach((b) => add(b, iso(year - 2, 1 + Math.floor(rnd() * 12), 1 + Math.floor(rnd() * 27)), places[Math.floor(rnd() * 3)]));
   return rows;
 }
 
