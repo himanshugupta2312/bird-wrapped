@@ -377,3 +377,10 @@ dialog .hint { margin: 10px 0 0; }
 .slide .mark { padding-top: 12px; }
 
 .skipbox .lifetip { margin: 6px 0 0; font-size: 12px; line-height: 18px; color: var(--mut); }
+
+/* a selected or focused bird glows along its own outline, never in a square box */
+.slide img[data-b], .wall .w { outline: none; }
+.slide img[data-b]:focus, .slide img[data-b]:focus-visible { outline: none; border-radius: 0; }
+.slide img[data-b]:focus-visible { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px rgba(255,255,255,.85)); }
+.wall .w.picked { outline: none; filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 3px rgba(255,255,255,.9)) brightness(1.15); }
+.tap:focus-visible { outline: none; }
