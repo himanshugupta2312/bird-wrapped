@@ -782,12 +782,42 @@ async function waitImages(el) {
   const imgs = [...el.querySelectorAll("img")];
   await Promise.all(imgs.map((im) => (im.complete ? Promise.resolve() : new Promise((r) => { im.onload = im.onerror = r; }))));
 }
+// html2canvas ignores object-fit, so it stretches every sticker to fill its square box. Before it draws, give each
+// sticker in the copy the exact size it has on screen (fitted inside its box, keeping its own proportions) and
+// centre it with margins, so the layout stays the same and nothing is stretched.
+function fitStickers(orig, copy) {
+  const a = orig.querySelectorAll("img"), b = copy.querySelectorAll("img");
+  a.forEach((im, k) => {
+    const c = b[k];
+    const bw = im.offsetWidth, bh = im.offsetHeight, nw = im.naturalWidth, nh = im.naturalHeight;
+    if (!c || !bw || !bh || !nw || !nh) return;
+    const f = Math.min(bw / nw, bh / nh);
+    const w = nw * f, h = nh * f;
+    c.style.setProperty("object-fit", "fill", "important");
+    c.style.setProperty("aspect-ratio", "auto", "important");
+    c.style.setProperty("width", w + "px", "important");
+    c.style.setProperty("height", h + "px", "important");
+    // keep the margins the layout already gives this image (some are "auto" and resolve to pixels) and add the leftover space
+    const m = getComputedStyle(im), dx = (bw - w) / 2, dy = (bh - h) / 2;
+    c.style.setProperty("margin", (parseFloat(m.marginTop) || 0) + dy + "px " + ((parseFloat(m.marginRight) || 0) + dx) + "px " + ((parseFloat(m.marginBottom) || 0) + dy) + "px " + ((parseFloat(m.marginLeft) || 0) + dx) + "px", "important");
+  });
+}
 async function capture(el) {
   await document.fonts?.ready;
   await waitImages(el);
+  const idx = slideEls.indexOf(el);
   return html2canvas(el, {
     scale: 3, useCORS: true, backgroundColor: null, logging: false,
-    onclone: (doc) => { const sc = doc.getElementById("scaler"); if (sc) sc.style.transform = "none"; },
+    onclone: (doc) => {
+      const sc = doc.getElementById("scaler");
+      if (sc) sc.style.transform = "none";
+      // the copy would replay the entry animations from their first frame, which exports faded or missing text
+      const st = doc.createElement("style");
+      st.textContent = "*, *::before, *::after { animation: none !important; transition: none !important; }";
+      doc.head.appendChild(st);
+      const slides = doc.getElementById("slides");
+      if (slides && idx >= 0 && slides.children[idx]) fitStickers(el, slides.children[idx]);
+    },
   });
 }
 const toBlob = (canvas) => new Promise((r) => canvas.toBlob(r, "image/png"));
