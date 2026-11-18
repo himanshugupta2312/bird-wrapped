@@ -23,6 +23,30 @@ for (const p of ["/wrapped", "/wrapped/"]) {
 }
 if (!html) { console.log("\nNo page to inspect, stopping."); process.exit(1); }
 
+// 1b. look alike addresses (a full stop or comma stuck on the end of a pasted link, a trailing slash, other capitals) go to /wrapped
+async function landsOn(p) {
+  const r = await fetch(base + p, { redirect: "manual" });
+  const loc = r.headers.get("location");
+  return { status: r.status, to: loc ? new URL(loc, base + p) : null };
+}
+const mustRedirect = ["/wrapped.", "/wrapped,", "/wrapped;", "/wrapped:", "/wrapped!", "/wrapped)", "/wrapped-", "/wrapped%20", "/wrapped/.", "/wrapped//", "/Wrapped", "/WRAPPED"];
+for (const p of mustRedirect) {
+  try {
+    const r = await landsOn(p);
+    ok(r.status >= 300 && r.status < 400 && r.to && r.to.pathname === "/wrapped", p + " goes to /wrapped (" + r.status + (r.to ? " to " + r.to.pathname : "") + ")");
+  } catch (e) { ok(false, p + " " + e.message); }
+}
+try { // a trailing slash either redirects or serves the page: it must never 404
+  const r = await landsOn("/wrapped/");
+  ok((r.status >= 300 && r.status < 400 && r.to && r.to.pathname === "/wrapped") || r.status === 200, "/wrapped/ works (" + r.status + ")");
+  const q = await landsOn("/wrapped.?demo=1&name=Asha");
+  ok(q.to && q.to.pathname === "/wrapped" && q.to.search === "?demo=1&name=Asha", "the query string survives the redirect", q.to && q.to.href);
+  for (const p of ["/wrappedx", "/wrapped-up", "/wrapped2"]) {
+    const n = await landsOn(p);
+    ok(!(n.to && n.to.pathname === "/wrapped"), p + " is a different address and is left alone (" + n.status + ")");
+  }
+} catch (e) { ok(false, "redirect details: " + e.message); }
+
 // 2. every file the page asks for from this site loads
 const own = [...new Set([...html.matchAll(/(?:src|href)="(\/wrapped\/[^"#]+)"/g)].map((m) => m[1]))];
 for (const ref of own) {

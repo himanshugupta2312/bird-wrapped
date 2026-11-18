@@ -19,12 +19,18 @@ function send(res, file) {
   fs.createReadStream(file).pipe(res);
 }
 
+// keep in step with the redirects in the portfolio's vercel.json
+const lookAlike = (p) =>
+  /^\/wrapped(?:%[0-9A-Fa-f]{2}|[^a-zA-Z0-9/%])+$/.test(p) ||
+  /^\/wrapped\/(?:%[0-9A-Fa-f]{2}|[^a-zA-Z0-9%])+$/.test(p) ||
+  p === "/wrapped/" || p === "/Wrapped" || p === "/WRAPPED";
+
 http.createServer((req, res) => {
   const u = new URL(req.url, "http://x");
+  if (lookAlike(u.pathname)) { res.writeHead(302, { location: "/wrapped" + u.search }); return res.end(); }
   const url = decodeURIComponent(u.pathname);
-  if (url === "/wrapped") { res.writeHead(302, { location: "/wrapped/" + u.search }); return res.end(); }
-  if (url.startsWith("/wrapped/")) {
-    const rel = url.slice("/wrapped/".length) || "index.html";
+  if (url === "/wrapped" || url.startsWith("/wrapped/")) {
+    const rel = url === "/wrapped" ? "index.html" : url.slice("/wrapped/".length) || "index.html";
     const f = path.join(app, rel);
     return f.startsWith(app) && isFile(f) ? send(res, f) : (res.writeHead(404), res.end("not found"));
   }
@@ -34,4 +40,4 @@ http.createServer((req, res) => {
   const nf = path.join(portfolio, "404.html");
   res.writeHead(404, { "content-type": "text/html; charset=utf-8" });
   res.end(isFile(nf) ? fs.readFileSync(nf) : "not found");
-}).listen(port, "127.0.0.1", () => console.log(`Portfolio: http://127.0.0.1:${port}/   Wrapped: http://127.0.0.1:${port}/wrapped/`));
+}).listen(port, "127.0.0.1", () => console.log(`Portfolio: http://127.0.0.1:${port}/   Wrapped: http://127.0.0.1:${port}/wrapped`));
