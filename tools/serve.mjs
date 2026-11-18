@@ -11,10 +11,9 @@ const port = +process.argv[2] || 5173;
 const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".webp": "image/webp" };
 
 // keep in step with the redirects in vercel.json
-const lookAlike = (p) =>
-  /^\/wrapped(?:%[0-9A-Fa-f]{2}|[^a-zA-Z0-9/%])+$/.test(p) ||   // /wrapped. /wrapped, /wrapped) /wrapped%20
-  /^\/wrapped\/(?:%[0-9A-Fa-f]{2}|[^a-zA-Z0-9%])+$/.test(p) ||  // /wrapped/. /wrapped//
-  p === "/wrapped/" || p === "/Wrapped" || p === "/WRAPPED";
+const lookAlike = (p) => p !== "/wrapped" && (
+  /^\/wrapped(?:%[0-9a-f]{2}|[^a-z0-9/%])*\/?$/i.test(p) ||   // any capitals, optional punctuation or slash: /Wrapped /WRAPPED. /wrapped, /wrapped/
+  /^\/wrapped\/(?:%[0-9a-f]{2}|[^a-z0-9%])+$/i.test(p));     // /wrapped/. /wrapped//
 
 http.createServer((req, res) => {
   const u = new URL(req.url, "http://x");

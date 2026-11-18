@@ -5,8 +5,7 @@
   "redirects": [
     { "source": "/:p(wrapped(?:%[0-9A-Fa-f]{2}|[^a-zA-Z0-9/%])+)", "destination": "/wrapped", "permanent": false },
     { "source": "/wrapped/:p((?:%[0-9A-Fa-f]{2}|[^a-zA-Z0-9%])+)", "destination": "/wrapped", "permanent": false },
-    { "source": "/Wrapped", "destination": "/wrapped", "permanent": false },
-    { "source": "/WRAPPED", "destination": "/wrapped", "permanent": false }
+    { "source": "/:p((?!wrapped$)[Ww][Rr][Aa][Pp][Pp][Ee][Dd](?:%[0-9A-Fa-f]{2}|[^a-zA-Z0-9/%])*)", "destination": "/wrapped", "permanent": false }
   ],
   "rewrites": [
     { "source": "/wrapped", "destination": "/" },

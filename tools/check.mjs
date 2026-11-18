@@ -29,7 +29,7 @@ async function landsOn(p) {
   const loc = r.headers.get("location");
   return { status: r.status, to: loc ? new URL(loc, base + p) : null };
 }
-const mustRedirect = ["/wrapped.", "/wrapped,", "/wrapped;", "/wrapped:", "/wrapped!", "/wrapped)", "/wrapped-", "/wrapped%20", "/Wrapped", "/WRAPPED"];
+const mustRedirect = ["/wrapped.", "/wrapped,", "/wrapped;", "/wrapped:", "/wrapped!", "/wrapped)", "/wrapped-", "/wrapped%20", "/Wrapped", "/WRAPPED", "/WrApped", "/wRAPPED", "/WRAPPEd", "/Wrapped.", "/WRAPPED,", "/WrApped%20"];
 for (const p of mustRedirect) {
   try {
     const r = await landsOn(p);
@@ -48,7 +48,7 @@ try { // a trailing slash either redirects or serves the page: it must never 404
   ok((r.status >= 300 && r.status < 400 && r.to && r.to.pathname === "/wrapped") || r.status === 200, "/wrapped/ works (" + r.status + ")");
   const q = await landsOn("/wrapped.?demo=1&name=Asha");
   ok(q.to && q.to.pathname === "/wrapped" && q.to.search === "?demo=1&name=Asha", "the query string survives the redirect", q.to && q.to.href);
-  for (const p of ["/wrappedx", "/wrapped-up", "/wrapped2"]) {
+  for (const p of ["/wrappedx", "/wrapped-up", "/wrapped2", "/Wrappedx", "/WRAPPED2", "/Wrapped-up"]) {
     const n = await landsOn(p);
     ok(!(n.to && n.to.pathname === "/wrapped"), p + " is a different address and is left alone (" + n.status + ")");
   }
