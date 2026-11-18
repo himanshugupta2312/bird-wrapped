@@ -47,6 +47,6 @@ All asset paths in the app are absolute (`/wrapped/...`), so it works both proxi
 ## Known limits
 
 - "New species" means first appearing in your file, so a partial export overstates it.
-- eBird and AviList taxonomies differ in places, so a few species won't match.
+- Totals follow eBird: rows eBird marks as not countable (escaped birds) are left out. eBird and AviList taxonomies differ in places, so a species eBird counts but the sticker set lacks (newer splits) is still counted, just without a picture.
 - PNG export uses html2canvas from cdnjs, so it needs a connection.
 - Sharing straight to Instagram needs HTTPS and a phone browser that supports file sharing.

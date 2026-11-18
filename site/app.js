@@ -102,7 +102,7 @@ function parseEbird(text) {
     sci: col("scientific name", "scientific_name", "latin name", "species"),
     count: col("count", "number", "quantity"), state: col("state/province", "s/p"),
     loc: col("location", "place", "place_guess"), date: col("date", "observed_on", "observation date", "date observed"),
-    time: col("time", "time_observed_at"), dur: col("duration (min)"), dist: col("distance traveled (km)"), cat: col("category"),
+    time: col("time", "time_observed_at"), dur: col("duration (min)"), dist: col("distance traveled (km)"), cat: col("category"), countable: col("countable"),
   };
   // eBird's "life list" export: one row per species, SubID instead of Submission ID.
   // Any other CSV with a species column and a date column is treated the same way (first sightings).
@@ -124,6 +124,10 @@ function parseEbird(text) {
     if (c.cat >= 0 && !/^(species|issf)$/i.test(get(r, c.cat))) {
       const cat = get(r, c.cat).toLowerCase();
       out.dropped.push({ date, name: get(r, c.en) || get(r, c.sci), reason: catReason[cat] || "form" });
+      continue;
+    }
+    if (c.countable >= 0 && get(r, c.countable) === "0") { // eBird does not count it, so neither do we
+      out.dropped.push({ date, name: get(r, c.en) || get(r, c.sci), reason: "uncountable" });
       continue;
     }
     const n = parseInt(get(r, c.count), 10);
@@ -149,6 +153,21 @@ function skipReason(sci, en) {
   return null;
 }
 
+// eBird (Clements) and the sticker set (AviList) don't always split species the same way. A real species with no
+// sticker still counts toward every total, so we give it a stand in entry without a picture or trait data.
+const EXTRA = new Map();
+function standInBird(sci, en) {
+  const key = sci.trim().toLowerCase().split(/\s+/).slice(0, 2).join(" ");
+  if (EXTRA.has(key)) return EXTRA.get(key);
+  const b = {
+    i: BIRDS.length + EXTRA.size, sci: key.charAt(0).toUpperCase() + key.slice(1),
+    en: (en || sci).replace(/\s*\(.*?\)\s*/g, "").trim(), order: "", family: "", familyEn: "", sticker: "",
+    massG: null, habitat: "", migration: "", iucn: "", synthetic: true,
+  };
+  EXTRA.set(key, b);
+  return b;
+}
+
 const resolveCache = new Map();
 function resolve(sci, en) {
   const key = sci + "|" + en;
@@ -167,6 +186,8 @@ function resolve(sci, en) {
       hit = byEn.get(en.toLowerCase()) || byEn.get(en.replace(/\s*\(.*?\)\s*/g, "").toLowerCase());
     }
   }
+  // a proper two part species name that we couldn't find: still a species
+  if (!hit && s && !skipReason(sci, en) && /^[A-Za-z-]+ [a-z-]+/.test(s)) hit = standInBird(s, en);
   resolveCache.set(key, hit || null);
   return hit || null;
 }
@@ -207,6 +228,7 @@ function analyze(rows, year) {
   }
 
   const yr = obs.filter((o) => o.date.startsWith(year));
+  const noSticker = [...new Set(yr.filter((o) => o.b.synthetic).map((o) => o.b.en))];
   const allYearRows = rows.filter((r) => r.date.startsWith(year));
 
   const lists = new Map(); // sid -> {date,hour,dur,dist,loc,state}
@@ -265,6 +287,7 @@ function analyze(rows, year) {
   const famMap = new Map();
   species.forEach((e) => {
     const k = e.b.familyEn || e.b.family;
+    if (!k) return;
     const f = famMap.get(k) || { name: k, n: 0, members: [] };
     f.n++; f.members.push(e); famMap.set(k, f);
   });
@@ -315,7 +338,7 @@ function analyze(rows, year) {
   else persona = { name: "The Steady Observer", why: "You show up, you look up, you write it down." };
 
   return {
-    places: [...placeCount.entries()].sort((a, b) => b[1] - a[1]), firstRow, byIdx: new Map(species.map((e) => [e.b.i, e])), life, topCountries, lifeBefore, lifeTotal: lifeBefore + lifers.length,
+    places: [...placeCount.entries()].sort((a, b) => b[1] - a[1]), noSticker, firstRow, byIdx: new Map(species.map((e) => [e.b.i, e])), life, topCountries, lifeBefore, lifeTotal: lifeBefore + lifers.length,
     year, skipped, skipInfo, totalRows: allYearRows.length + (rows.dropped || []).filter((d) => d.date.startsWith(year)).length, nLists: lists.size, nSpecies: species.length, nBirds: birds,
     hours, km, nLocs: locCount.size, countries: countries.size, topLoc, species, byFreq, byCount, families,
     biggest, smallest, threatened, lifers, months, peakMonth, medianHour, streak, streakEnd, persona,
@@ -331,7 +354,7 @@ const hourLabel = (h) => {
   return `${h12} ${ap}`;
 };
 const mosaic = (list, cols = 5, max = 20) =>
-  `<div class="mosaic${cols === 4 ? " cols4" : cols === 3 ? " cols3" : ""}">${list.slice(0, max).map((b) => img(b)).join("")}</div>`;
+  `<div class="mosaic${cols === 4 ? " cols4" : cols === 3 ? " cols3" : ""}">${list.filter((b) => b && b.sticker).slice(0, max).map((b) => img(b)).join("")}</div>`;
 const durBig = (h) => (h >= 48 ? `${(h / 24).toFixed(1)}<span class="unit"> days</span>` : `${fmt(h)}<span class="unit"> hours</span>`);
 
 /* ------------------------------------------------------- summary card */
@@ -442,7 +465,7 @@ function buildSlides(s) {
 
   // 5. signature bird
   if (s.byFreq.length) {
-    const t = s.byFreq[0];
+    const t = s.byFreq.find((e) => e.b.sticker) || s.byFreq[0];
     out.push(`
     <section class="slide t-sun">
       <p class="k">Your signature bird</p>
@@ -932,20 +955,28 @@ const SKIP_TEXT = {
   hybrid: "Hybrids: no sticker exists for them.",
   domestic: "Domestic or feral forms: not wild species.",
   form: "Other non-species entries (forms and subspecies groups).",
+  uncountable: "Not counted by eBird (for example escaped or exotic birds), so they stay off your life list and are left off here too.",
   nomatch: "Names I couldn't match to the sticker set. eBird and the sticker set (AviList) sometimes name or split a bird differently, so a bird you saw may be missing here.",
 };
 function renderSkips(s) {
   const box = $("skipbox");
-  if (!s.skipped) { box.hidden = true; box.innerHTML = ""; return; }
+  const ns = s.noSticker || [];
+  if (!s.skipped && !ns.length) { box.hidden = true; box.innerHTML = ""; return; }
   const what = ROWS.isLife ? "entries" : "observations";
   const groups = [...s.skipInfo.entries()].map(([reason, m]) => {
-    const names = [...m.entries()].sort((a, b) => b[1] - a[1]);
+    const names = [...m.entries()].sort((x, y) => y[1] - x[1]);
     const shown = names.slice(0, 8).map(([n]) => esc(n)).join(", ");
     return `<li><b>${fmt(names.length)}</b> ${esc(SKIP_TEXT[reason])}<br><span class="names">${shown}${names.length > 8 ? ` and ${names.length - 8} more` : ""}</span></li>`;
   }).join("");
+  const stickerless = ns.length
+    ? `<li><b>${fmt(ns.length)}</b> ${ns.length === 1 ? "species is" : "species are"} counted in every total but ${ns.length === 1 ? "has" : "have"} no picture. eBird has newer species splits than the sticker set, so there is no sticker for ${ns.length === 1 ? "it" : "them"} yet.<br><span class="names">${ns.slice(0, 8).map(esc).join(", ")}${ns.length > 8 ? ` and ${ns.length - 8} more` : ""}</span></li>`
+    : "";
+  const bits = [];
+  if (s.skipped) bits.push(`${fmt(s.skipped)} of ${fmt(s.totalRows)} ${what} in ${esc(s.year)} were left out`);
+  if (ns.length) bits.push(`${fmt(ns.length)} ${ns.length === 1 ? "species" : "species"} counted without a sticker`);
   box.hidden = false;
-  box.innerHTML = `<details><summary>${fmt(s.skipped)} of ${fmt(s.totalRows)} ${what} in ${esc(s.year)} were left out. Why?</summary><ul>${groups}</ul>` +
-    `<p>Left-out birds aren't counted in any card${ROWS.isLife ? ", and a bird missing from an earlier year can show up as new later" : ""}.</p></details>`;
+  box.innerHTML = `<details><summary>${bits.join(", ")}. Why?</summary><ul>${groups}${stickerless}</ul>` +
+    (s.skipped ? `<p>Left-out birds aren't counted in any card${ROWS.isLife ? ", and a bird missing from an earlier year can show up as new later" : ""}.</p>` : "") + `</details>`;
 }
 
 function openViewer() {
