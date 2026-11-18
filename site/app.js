@@ -716,7 +716,7 @@ function hitSticker(im, cx, cy) {
   const bw = im.offsetWidth, bh = im.offsetHeight, nw = im.naturalWidth, nh = im.naturalHeight;
   if (!bw || !bh || !nw || !nh) return false;
   const m = maskFor(im);
-  if (m === undefined || m === null) return m === null; // unreadable: the box; still loading: no
+  if (m === undefined || m === null) return true; // pixels not read yet (or unreadable): count the whole box rather than miss the tap
   const x = ((cx - r.left) / r.width) * bw, y = ((cy - r.top) / r.height) * bh;
   const f = Math.min(bw / nw, bh / nh), cw = nw * f, ch = nh * f;
   const px = ((x - (bw - cw) / 2) / cw) * m.W, py = ((y - (bh - ch) / 2) / ch) * m.H;
@@ -729,6 +729,20 @@ function hitSticker(im, cx, cy) {
     }
   }
   return false;
+}
+function warmMasks() {
+  const imgs = [...document.querySelectorAll("#slides img[data-b]")];
+  let i = 0;
+  const step = () => {
+    const t0 = performance.now();
+    while (i < imgs.length && performance.now() - t0 < 10) {
+      const im = imgs[i++];
+      if (im.complete && im.naturalWidth) maskFor(im);
+      else im.addEventListener("load", () => maskFor(im), { once: true });
+    }
+    if (i < imgs.length) setTimeout(step, 25);
+  };
+  setTimeout(step, 300);
 }
 function stickerAt(cx, cy) {
   const sl = slideEls[cur];
@@ -809,11 +823,21 @@ function show(i, instant) {
 }
 
 // drag or swipe the card sideways; it follows the finger and settles on the nearest card
+// what a tap on the card does: open a bird, close the bubble, or turn the page
+function cardTap(cx, cy) {
+  const im = stickerAt(cx, cy);
+  if (im) { showBubble(im); return; }
+  if (bubbleFor) { hideBubble(); return; }
+  const r = $("scaler").getBoundingClientRect();
+  show((cx - r.left) / r.width < 0.34 ? cur - 1 : cur + 1);
+}
+
 function initSwipe() {
   const el = $("scaler");
   let down = false, drag = false, sx = 0, sy = 0, st = 0, pid = null, w = 360;
   el.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (e.target.closest && e.target.closest("#bubble")) return; // taps on the bubble are handled by its click
     if (slideEls.length < 2) return;
     down = true; drag = false; sx = e.clientX; sy = e.clientY; st = performance.now(); pid = e.pointerId;
     w = el.getBoundingClientRect().width || 360;
@@ -839,7 +863,15 @@ function initSwipe() {
   const end = (e) => {
     if (!down || (e.pointerId !== pid && e.type !== "pointercancel")) return;
     down = false;
-    if (!drag) return;
+    if (!drag) {
+      // a short press with hardly any movement is a tap. Reading it here, not from "click", means the first tap
+      // always counts (some phones swallow a click after hover changes or while the page is still settling)
+      if (e.type === "pointerup" && Math.hypot(e.clientX - sx, e.clientY - sy) < 10 && performance.now() - st < 700) {
+        cardTap(e.clientX, e.clientY);
+        swallowClick = true; setTimeout(() => { swallowClick = false; }, 400); // ignore the click that follows
+      }
+      return;
+    }
     drag = false;
     swallowClick = true; setTimeout(() => { swallowClick = false; }, 80);
     const dx = e.type === "pointercancel" ? 0 : e.clientX - sx, v = dx / Math.max(1, performance.now() - st);
@@ -869,6 +901,7 @@ function mountSlides(html) {
   slideEls = [...$("slides").children];
   slidesVer++; rendered.clear();
   show(0, true);
+  warmMasks();
 }
 function fit() {
   const s = Math.max(0.5, Math.min((window.innerWidth - 32) / 360, (window.innerHeight - 260) / 640, 1.6));
@@ -1228,18 +1261,16 @@ function init() {
   $("scaler").addEventListener("click", (e) => {
     if (swallowClick) return;
     if (e.target.closest && e.target.closest(".tap")) return; // the keyboard buttons handle themselves
+    if (e.target.closest && e.target.closest("#bubble")) { hideBubble(); return; } // tap the bubble to close it
     // a click with no pointer position (screen reader or script activating the bird) goes straight to that bird
     if (e.detail === 0 && e.target.matches && e.target.matches("img[data-b]")) { showBubble(e.target); return; }
-    const im = stickerAt(e.clientX, e.clientY);
-    if (im) { showBubble(im); return; }
-    if (bubbleFor) { hideBubble(); return; }
-    const r = $("scaler").getBoundingClientRect();
-    show((e.clientX - r.left) / r.width < 0.34 ? cur - 1 : cur + 1);
+    cardTap(e.clientX, e.clientY);
   });
   // highlight and pointer cursor only while the mouse is over a bird, not its empty box
   let hovered = null, hoverRaf = 0;
   const clearHover = () => { if (hovered) hovered.classList.remove("hov"); hovered = null; $("scaler").style.cursor = ""; };
-  $("scaler").addEventListener("mousemove", (e) => {
+  const canHover = window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  if (canHover) $("scaler").addEventListener("mousemove", (e) => {
     if (hoverRaf || $("slides").classList.contains("dragging")) return;
     const cx = e.clientX, cy = e.clientY;
     hoverRaf = requestAnimationFrame(() => {
