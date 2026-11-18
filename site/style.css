@@ -375,3 +375,5 @@ dialog .hint { margin: 10px 0 0; }
 .wall .w.hov { filter: brightness(1.35); }
 .wall .w.picked { outline: 1.5px solid #fff; outline-offset: 0; position: relative; z-index: 1; }
 .slide .mark { padding-top: 12px; }
+
+.skipbox .lifetip { margin: 6px 0 0; font-size: 12px; line-height: 18px; color: var(--mut); }

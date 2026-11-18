@@ -6,8 +6,8 @@ Turn your eBird list into your year in birds, as story cards you can post on Ins
 
 ## What it does
 
-- **A one page summary first.** New species, life list, countries, where the new birds came from, top family, rarest find, best month and a strip of birds. It is the card most people will share, with an optional name on it.
-- **The story after it.** Species seen, time in the field, new species, signature bird, favourite family, size range, threatened species, monthly rhythm and a birding personality.
+- **A one page summary first.** The headline is how many new species you added that year, with your life list underneath and, if you gave it your full eBird data, how many species you saw in total that year. Plus families, countries, where the new birds came from, top family, rarest find, best month and a strip of birds. It is the card most people will share, with an optional name on it.
+- **The story after it is about your new species.** A wall with every new bird (however many), where they came from, your first and latest, the family you gained most, size range, threatened species, new birds by month and a birding personality.
 - **Swipe or tap through the cards.** Drag to slide, tap the left third to go back and the rest to go forward, or use the arrow keys.
 - **Tap a bird** for a small bubble with its name, where and when you first saw it, whether it was a lifer, its IUCN status, weight, habitat and migration. Only the bird itself is tappable, not its empty box.
 - **Share or download** from a glass dialog where you choose which cards (the one you are on is ticked, with Select all). Several cards download as one ZIP. Sharing straight to Instagram needs a phone browser with file sharing and HTTPS.
@@ -18,8 +18,8 @@ Turn your eBird list into your year in birds, as story cards you can post on Ins
 
 | Input | What you get |
 |---|---|
-| eBird **life list** CSV (My eBird, Life List, Download) | New species per year, countries, places, families |
-| eBird **MyEBirdData.csv** (all observations) | The above plus species seen, checklists, hours, signature bird, usual start time |
+| eBird **life list** CSV (My eBird, Life List, Download) | The new species story. A life list only records first sightings, so it can't tell how many species you saw in total |
+| eBird **MyEBirdData.csv** (all observations) | The same story, plus a "seen this year" number on the summary and a start time and streak on the personality card |
 | Any CSV with a species column and a date column | Treated like a life list |
 | A pasted list of bird names (optional dates) | Treated like a life list; birds with no date count in the current year |
 

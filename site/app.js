@@ -200,14 +200,19 @@ function resolve(sci, en) {
 const dayNum = (d) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) / 86400000;
 
 function listYears(rows) {
-  const m = new Map(), unknown = new Set();
+  // each bird belongs to the year it was first seen
+  const first = new Map();
   rows.forEach((r) => {
-    const key = rows.isLife ? r.sci : r.sid, y = r.date.slice(0, 4);
-    if (+y < 1950) unknown.add(key); // eBird writes 1 Jan 1900 when it doesn't know the date
-    else m.set(y, (m.get(y) || new Set()).add(key));
+    const b = resolve(r.sci, r.en);
+    if (!b) return;
+    const f = first.get(b.i);
+    if (!f || r.date < f) first.set(b.i, r.date);
   });
-  const list = [...m.entries()].map(([y, set]) => ({ y, n: set.size })).sort((p, q) => q.y - p.y);
-  if (unknown.size) list.push({ y: "unknown", n: unknown.size });
+  const m = new Map();
+  let unknown = 0;
+  first.forEach((d) => { if (+d.slice(0, 4) < 1950) unknown++; else m.set(d.slice(0, 4), (m.get(d.slice(0, 4)) || 0) + 1); }); // eBird writes 1 Jan 1900 when it doesn't know the date
+  const list = [...m.entries()].map(([y, n]) => ({ y, n })).sort((p, q) => q.y - p.y);
+  if (unknown) list.push({ y: "unknown", n: unknown });
   return list;
 }
 
@@ -268,35 +273,29 @@ function analyze(rows, year) {
   const locCount = new Map();
   lists.forEach((l) => { if (l.loc) locCount.set(l.loc, (locCount.get(l.loc) || 0) + 1); });
   const life = !!rows.isLife;
-  // life lists: group by cleaned place, counting new species rather than checklists
-  let topLoc;
+  // the cards are about the birds that were new in this year
+  const focus = species.filter((e) => inY(firstSeen.get(e.b.i)));
+  // where the new birds came from: new species per country and per place (same for a life list and a full data file)
   const countries = new Set();
   const countryCount = new Map(), placeCount = new Map();
-  if (life) {
-    for (const o of yr) {
-      const cc = o.state ? o.state.split("-")[0] : "";
-      if (cc) { countries.add(cc); countryCount.set(cc, (countryCount.get(cc) || 0) + 1); }
-      const p = cleanLoc(o.loc);
-      if (p) placeCount.set(p, (placeCount.get(p) || 0) + 1);
-    }
-    topLoc = [...placeCount.entries()].sort((a, b) => b[1] - a[1])[0] || null;
-  } else {
-    topLoc = [...locCount.entries()].sort((a, b) => b[1] - a[1])[0] || null;
-    topLoc = topLoc && [cleanLoc(topLoc[0]), topLoc[1]];
-    lists.forEach((l) => {
-      if (l.state) { const cc = l.state.split("-")[0]; countries.add(cc); countryCount.set(cc, (countryCount.get(cc) || 0) + 1); }
-      const p = cleanLoc(l.loc);
-      if (p) placeCount.set(p, (placeCount.get(p) || 0) + 1);
-    });
+  for (const l of lifers) {
+    const o = firstRow.get(l.b.i);
+    if (!o) continue;
+    const cc = o.state ? o.state.split("-")[0] : "";
+    if (cc) { countries.add(cc); countryCount.set(cc, (countryCount.get(cc) || 0) + 1); }
+    const p = cleanLoc(o.loc);
+    if (p) placeCount.set(p, (placeCount.get(p) || 0) + 1);
   }
+  const topLoc = [...placeCount.entries()].sort((a, b) => b[1] - a[1])[0] || null;
   const topCountries = [...countryCount.entries()].sort((a, b) => b[1] - a[1]);
+  const topChecklistLoc = [...locCount.entries()].sort((a, b) => b[1] - a[1])[0] || null; // for the personality only
   const lifeBefore = undated ? 0 : [...firstSeen.values()].filter((d) => d < year + "-01-01").length;
 
   const byFreq = [...species].sort((a, b) => b.lists.size - a.lists.size || b.total - a.total);
   const byCount = [...species].sort((a, b) => b.total - a.total);
 
   const famMap = new Map();
-  species.forEach((e) => {
+  focus.forEach((e) => {
     const k = e.b.familyEn || e.b.family;
     if (!k) return;
     const f = famMap.get(k) || { name: k, n: 0, members: [] };
@@ -304,17 +303,16 @@ function analyze(rows, year) {
   });
   const families = [...famMap.values()].sort((a, b) => b.n - a.n);
 
-  const withMass = species.filter((e) => e.b.massG != null);
+  const withMass = focus.filter((e) => e.b.massG != null);
   const biggest = [...withMass].sort((a, b) => b.b.massG - a.b.massG)[0] || null;
   const smallest = [...withMass].sort((a, b) => a.b.massG - b.b.massG)[0] || null;
 
-  const threatened = species
+  const threatened = focus
     .filter((e) => (IUCN_RANK[e.b.iucn] || 0) >= 3)
     .sort((a, b) => IUCN_RANK[b.b.iucn] - IUCN_RANK[a.b.iucn] || a.lists.size - b.lists.size);
 
-  const months = new Array(12).fill(0);
-  if (life) yr.forEach((o) => { months[+o.date.slice(5, 7) - 1]++; });
-  else lists.forEach((l) => { months[+l.date.slice(5, 7) - 1]++; });
+  const months = new Array(12).fill(0); // new species per month
+  lifers.forEach((l) => { months[+l.date.slice(5, 7) - 1]++; });
   const peakMonth = months.indexOf(Math.max(...months));
 
   const hoursArr = [...lists.values()].map((l) => l.hour).filter((h) => h != null).sort((a, b) => a - b);
@@ -333,16 +331,15 @@ function analyze(rows, year) {
   const prevYear = String(+year - 1);
   const prevSp = new Set(obs.filter((o) => o.date.startsWith(prevYear)).map((o) => o.b.i));
 
-  const topShare = topLoc ? topLoc[1] / Math.max(1, lists.size) : 0;
+  const topShare = topChecklistLoc ? topChecklistLoc[1] / Math.max(1, lists.size) : 0;
+  const peakShare = lifers.length ? Math.max(...months) / lifers.length : 0;
   let persona;
   if (undated) persona = { name: "The Archivist", why: "These birds are on your list, but nobody wrote down when. They still count." };
+  else if (countries.size >= 3) persona = { name: "The Globetrotter", why: `New birds from ${countries.size} countries this year.` };
   else if (life) {
-    const peak = Math.max(...months);
-    if (countries.size >= 3) persona = { name: "The Globetrotter", why: `New birds from ${countries.size} countries this year.` };
-    else if (lists.size && peak / lists.size > 0.4) persona = { name: "The Migration Chaser", why: "Most of your new birds came in one burst. You know when the good stuff moves through." };
+    if (peakShare > 0.4) persona = { name: "The Migration Chaser", why: "Most of your new birds came in one burst. You know when the good stuff moves through." };
     else persona = { name: "The Steady Collector", why: "New birds all year round. The list just keeps growing." };
-  } else if (countries.size >= 3) persona = { name: "The Globetrotter", why: `You birded in ${countries.size} countries this year.` };
-  else if (topLoc && topShare > 0.5 && lists.size >= 15) persona = { name: "The Patch Devotee", why: `${Math.round(topShare * 100)}% of your checklists came from one place. You know every bush.` };
+  } else if (topChecklistLoc && topShare > 0.5 && lists.size >= 15) persona = { name: "The Patch Devotee", why: `${Math.round(topShare * 100)}% of your checklists came from one place. You know every bush.` };
   else if (medianHour != null && (medianHour < 5 || medianHour >= 20)) persona = { name: "The Night Owl", why: "Your typical checklist starts in the dark. The owls know your name." };
   else if (medianHour != null && medianHour < 8.5) persona = { name: "The Dawn Chorus", why: "Half your checklists started before 8:30 am. You're out when the birds are loudest." };
   else if (medianHour != null && medianHour >= 16) persona = { name: "The Dusk Patroller", why: "You do your birding when the light goes golden." };
@@ -414,9 +411,11 @@ function summaryData(s) {
   const add = (b) => { if (b && b.sticker && !seen.has(b.i)) { seen.add(b.i); strip.push(b); } };
   s.threatened.slice(0, 2).forEach((e) => add(e.b));
   pool.forEach(add);
-  const tiles = life
-    ? [[fmt(s.lifeTotal), "life list"], [fmt(s.families.length), "families"], [fmt(s.countries), s.countries === 1 ? "country" : "countries"], ...(s.undated ? [] : [[(s.lifers.length / 12).toFixed(1), "new a month"]])]
-    : [[fmt(s.lifeTotal), "life list"], [fmt(s.nSpecies), "seen in " + y], [fmt(s.nLists), "checklists"], s.hours >= 1 ? [fmt(s.hours), "hours out"] : [fmt(s.countries), s.countries === 1 ? "country" : "countries"]];
+  const tiles = [[fmt(s.lifeTotal), "life list"]];
+  if (!life && !s.undated) tiles.push([fmt(s.nSpecies), "seen in " + y]); // only a full eBird data file knows how many species you saw in total
+  tiles.push([fmt(s.families.length), "families"]);
+  tiles.push([fmt(s.countries), s.countries === 1 ? "country" : "countries"]);
+  if (life && !s.undated) tiles.push([(s.lifers.length / 12).toFixed(1), "new a month"]);
   const facts = [];
   if (s.families[0]) facts.push(["Top family", s.families[0].name]);
   if (s.threatened[0]) facts.push(["Rarest find", s.threatened[0].b.en + " (" + (IUCN_NAME[s.threatened[0].b.iucn] || s.threatened[0].b.iucn) + ")", s.threatened[0].b.en + " (" + s.threatened[0].b.iucn + ")"]);
@@ -443,7 +442,7 @@ function summaryA(d) {
       <p class="sum-title">${d.title}</p>
       <div class="a-hero"><b>${fmt(d.newCount)}</b><span>new species ${esc(d.inYear)}</span></div>
       <div class="a-tiles">${d.tiles.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("")}</div>
-      ${d.where.length ? `<p class="sum-h">${d.life ? "Where the new birds came from" : "Where you birded (checklists)"}</p>${d.where.map(([n, c]) => `<div class="wr"><span class="wn">${esc(n)}</span><span class="bar"><i style="width:${Math.max(6, Math.round((c / max) * 100))}%"></i></span><span class="wc">${fmt(c)}</span></div>`).join("")}` : ""}
+      ${d.where.length ? `<p class="sum-h">Where the new birds came from</p>${d.where.map(([n, c]) => `<div class="wr"><span class="wn">${esc(n)}</span><span class="bar"><i style="width:${Math.max(6, Math.round((c / max) * 100))}%"></i></span><span class="wc">${fmt(c)}</span></div>`).join("")}` : ""}
       <div class="a-strip">${d.strip.slice(0, 6).map((b) => img(b)).join("")}</div>
       <p class="a-facts">${d.facts.map(([k, v]) => "<b>" + esc(k) + ":</b> " + esc(v)).join("<br>")}</p>
       ${SUM_FOOT}
@@ -461,136 +460,7 @@ function buildSlides(s) {
   const mark = `<div class="mark">Birding Wrapped · ${esc(s.yl)}</div>`;
   const spBirds = s.byFreq.map(sp);
 
-  if (s.life) return buildLifeSlides(s, mark, spBirds);
-
-  out.push(summarySlide(s)); // the summary is the cover
-
-  // 2. species
-  const delta = s.prevCount ? s.nSpecies - s.prevCount : null;
-  out.push(`
-    <section class="slide t-sky">
-      <p class="k">Species seen</p>
-      <div class="big">${fmt(s.nSpecies)}</div>
-      <p class="sub pop">different kinds of birds, from ${s.families.length} ${s.families.length === 1 ? "family" : "families"}.${delta != null && delta !== 0 ? ` That's ${fmt(Math.abs(delta))} ${delta > 0 ? "more" : "fewer"} than in ${+y - 1}.` : ""}</p>
-      ${mosaic(spBirds.slice(0, 15), 5, 15)}
-      ${mark}
-    </section>`);
-
-  // 3. time
-  out.push(`
-    <section class="slide t-moss">
-      <p class="k">Time in the field</p>
-      <div class="big md">${s.hours >= 1 ? durBig(s.hours) : fmt(s.nLists)}</div>
-      <p class="sub pop">${s.hours >= 1 ? "spent birding" : "checklists submitted"} across ${fmt(s.nLists)} checklists.</p>
-      <div class="chips">
-        <div class="chip"><b>${fmt(s.nBirds)}</b>birds counted</div>
-        ${s.km >= 1 ? `<div class="chip"><b>${fmt(s.km)} km</b>on foot or wheels</div>` : ""}
-        <div class="chip"><b>${fmt(s.nLocs)}</b>${s.nLocs === 1 ? "place" : "places"}</div>
-        ${s.countries > 1 ? `<div class="chip"><b>${s.countries}</b>countries</div>` : ""}
-      </div>
-      ${s.topLoc ? `<p class="sub pop" style="margin-top:20px;font-size:14px">Most visited: <b>${esc(s.topLoc[0])}</b> (${s.topLoc[1]} ${s.topLoc[1] === 1 ? "checklist" : "checklists"}).</p>` : ""}
-      ${mark}
-    </section>`);
-
-  // 4. lifers
-  if (s.lifers.length) {
-    out.push(`
-    <section class="slide t-dusk">
-      <p class="k">New to your list</p>
-      <div class="big md">${fmt(s.lifers.length)}</div>
-      <p class="sub pop">${s.lifers.length === 1 ? "new species" : "new species"} you hadn't recorded before ${esc(y)}.</p>
-      ${wallHtml(s.lifers.map((l) => l.b))}
-      <p class="sub pop" style="margin-top:8px;font-size:13px">First one: <b>${esc(s.lifers[0].b.en)}</b>, ${esc(dFull(s.lifers[0].date))}.</p>
-      ${mark}
-    </section>`);
-  }
-
-  // 5. signature bird
-  if (s.byFreq.length) {
-    const t = s.byFreq.find((e) => e.b.sticker) || s.byFreq[0];
-    out.push(`
-    <section class="slide t-sun">
-      <p class="k">Your signature bird</p>
-      <h2>${esc(t.b.en)}</h2>
-      ${img(t.b, "hero-st")}
-      <p class="sub pop">On ${fmt(t.lists.size)} of your ${fmt(s.nLists)} checklists${t.total ? `, ${fmt(t.total)} individuals in all` : ""}.</p>
-      ${mark}
-    </section>`);
-  }
-
-  // 6. family
-  if (s.families.length) {
-    const f = s.families[0];
-    out.push(`
-    <section class="slide t-berry">
-      <p class="k">Favourite family</p>
-      <h2>${esc(f.name)}</h2>
-      <p class="sub pop" style="margin-top:8px">${fmt(f.n)} ${f.n === 1 ? "species" : "species"} of them this year.</p>
-      ${mosaic(f.members.sort((a, b) => b.lists.size - a.lists.size).map(sp), 4, 8)}
-      ${s.families[1] ? `<p class="sub pop" style="margin-top:8px;font-size:13px">Runner-up: ${esc(s.families[1].name)} (${s.families[1].n}).</p>` : ""}
-      ${mark}
-    </section>`);
-  }
-
-  // 7. size range
-  if (s.biggest && s.smallest && s.biggest.b.i !== s.smallest.b.i) {
-    const scale = (g) => Math.round(70 + 110 * Math.sqrt(g / s.biggest.b.massG));
-    const gram = (g) => (g >= 1000 ? `${(g / 1000).toFixed(1)} kg` : `${g.toFixed(g < 10 ? 1 : 0)} g`);
-    out.push(`
-    <section class="slide t-night">
-      <p class="k">From tiny to titan</p>
-      <h2>Your size range</h2>
-      <div class="pair">
-        <figure>${img(s.smallest.b, "", `width="${scale(s.smallest.b.massG)}" height="${scale(s.smallest.b.massG)}"`)}<b>${esc(s.smallest.b.en)}</b><br>${gram(s.smallest.b.massG)}</figure>
-        <figure>${img(s.biggest.b, "", `width="${scale(s.biggest.b.massG)}" height="${scale(s.biggest.b.massG)}"`)}<b>${esc(s.biggest.b.en)}</b><br>${gram(s.biggest.b.massG)}</figure>
-      </div>
-      <p class="sub pop" style="margin-top:18px;font-size:14px">${s.biggest.b.massG >= s.smallest.b.massG * 2 ? `The biggest outweighed the smallest ${fmt(s.biggest.b.massG / s.smallest.b.massG)} to 1.` : ""} Sizes are exaggerated so the smallest stays visible.</p>
-      ${mark}
-    </section>`);
-  }
-
-  // 8. threatened
-  if (s.threatened.length) {
-    out.push(`
-    <section class="slide t-forest">
-      <p class="k">Birds that need us</p>
-      <div class="big md">${fmt(s.threatened.length)}</div>
-      <p class="sub pop">${s.threatened.length === 1 ? "species" : "species"} you saw ${s.threatened.length === 1 ? "is" : "are"} Vulnerable or worse on the IUCN Red List.</p>
-      ${mosaic(s.threatened.slice(0, 4).map(sp), 4, 4)}
-      <ul class="list">
-        ${s.threatened.slice(0, 4).map((e) => `<li><span>${esc(e.b.en)}</span><span>${esc(IUCN_NAME[e.b.iucn] || e.b.iucn)}</span></li>`).join("")}
-      </ul>
-      ${mark}
-    </section>`);
-  }
-
-  // 9. rhythm
-  const max = Math.max(1, ...s.months);
-  out.push(`
-    <section class="slide t-sky">
-      <p class="k">Your rhythm</p>
-      <h2>${esc(MONTH_NAMES[s.peakMonth])} was your month.</h2>
-      <p class="sub pop" style="margin-top:8px">${s.months[s.peakMonth]} ${s.months[s.peakMonth] === 1 ? "checklist" : "checklists"}, your busiest stretch.</p>
-      <div class="bars">${s.months.map((n, i) => `<div class="${i === s.peakMonth ? "peak" : ""}"><span style="height:${Math.round((n / max) * 100)}%"></span>${MONTHS[i]}</div>`).join("")}</div>
-      ${mark}
-    </section>`);
-
-  // 10. persona
-  out.push(`
-    <section class="slide t-dusk">
-      <p class="k">Your birding personality</p>
-      <div class="persona">${esc(s.persona.name)}</div>
-      <p class="sub pop">${esc(s.persona.why)}</p>
-      <div class="chips">
-        ${s.medianHour != null ? `<div class="chip"><b>${hourLabel(s.medianHour)}</b>usual start time</div>` : ""}
-        <div class="chip"><b>${s.streak} ${s.streak === 1 ? "day" : "days"}</b>longest streak${s.streak > 1 ? "" : ""}</div>
-        <div class="chip"><b>${(s.nSpecies / Math.max(1, s.nLists)).toFixed(1)}</b>species per checklist</div>
-      </div>
-      ${mark}
-    </section>`);
-
-
-  return out;
+  return buildLifeSlides(s, mark, spBirds);
 }
 
 // Slides for the eBird life-list export: one row per species, so the story is about new species
@@ -698,7 +568,7 @@ function buildLifeSlides(s, mark, spBirds) {
       <p class="sub pop">${esc(s.persona.why)}</p>
       <div class="chips">
         <div class="chip"><b>${fmt(s.lifeTotal)}</b>on your life list</div>
-        ${s.undated ? "" : `<div class="chip"><b>${(lifers.length / 12).toFixed(1)}</b>new species a month</div>`}
+        ${s.undated ? "" : s.life ? `<div class="chip"><b>${(lifers.length / 12).toFixed(1)}</b>new species a month</div>` : (s.medianHour != null ? `<div class="chip"><b>${hourLabel(s.medianHour)}</b>usual start time</div>` : "") + `<div class="chip"><b>${s.streak} ${s.streak === 1 ? "day" : "days"}</b>longest streak</div>`}
         ${s.countries ? `<div class="chip"><b>${s.countries}</b>${s.countries === 1 ? "country" : "countries"}</div>` : ""}
       </div>
       ${mark}
@@ -1009,7 +879,10 @@ function renderSkips(s) {
   const box = $("skipbox");
   const ns = s.noSticker || [];
   const ph = s.undated ? 0 : ROWS.placeholder || 0; // species with no known date (shown on their own under Unknown date)
-  if (!s.skipped && !ns.length && !ph) { box.hidden = true; box.innerHTML = ""; return; }
+  const lifeTip = ROWS.isLife && !s.undated
+    ? '<p class="lifetip">A life list file only records first sightings, so it can\'t say how many species you saw in total this year. Use your full eBird data (Download My Data) to add a "seen this year" number to the summary.</p>'
+    : "";
+  if (!s.skipped && !ns.length && !ph && !lifeTip) { box.hidden = true; box.innerHTML = ""; return; }
   const what = ROWS.isLife ? "entries" : "observations";
   const groups = [...s.skipInfo.entries()].map(([reason, m]) => {
     const names = [...m.entries()].sort((x, y) => y[1] - x[1]);
@@ -1024,18 +897,20 @@ function renderSkips(s) {
     : "";
   const bits = [];
   if (s.skipped) bits.push(`${fmt(s.skipped)} of ${fmt(s.totalRows)} ${what} ${esc(s.inYear)} were left out`);
-  if (ph) bits.push(`${fmt(ph)} ${ph === 1 ? "species" : "species"} with no known date`);
-  if (ns.length) bits.push(`${fmt(ns.length)} ${ns.length === 1 ? "species" : "species"} counted without a sticker`);
+  if (ph) bits.push(`${fmt(ph)} species with no known date`);
+  if (ns.length) bits.push(`${fmt(ns.length)} species counted without a sticker`);
   box.hidden = false;
-  box.innerHTML = `<details><summary>${bits.join(", ")}. Why?</summary><ul>${groups}${stickerless}${dated}</ul>` +
-    (s.skipped ? `<p>Left-out birds aren't counted in any card${ROWS.isLife ? ", and a bird missing from an earlier year can show up as new later" : ""}.</p>` : "") + `</details>`;
+  box.innerHTML = (bits.length
+    ? `<details><summary>${bits.join(", ")}. Why?</summary><ul>${groups}${stickerless}${dated}</ul>` +
+      (s.skipped ? `<p>Left-out birds aren't counted in any card${ROWS.isLife ? ", and a bird missing from an earlier year can show up as new later" : ""}.</p>` : "") + `</details>`
+    : "") + lifeTip;
 }
 
 function openViewer() {
   const years = listYears(ROWS);
   if (!years.length) throw new Error("No dated observations found in that file.");
   if (!ROWS.some((r) => resolve(r.sci, r.en))) throw new Error("None of the birds in that file matched the sticker set, so there is nothing to show. Check that the names are common or scientific bird names.");
-  $("year").innerHTML = years.map((x) => `<option value="${x.y}">${x.y === "unknown" ? "Unknown date" : x.y} (${fmt(x.n)} ${ROWS.isLife ? "new species" : "checklists"})</option>`).join("");
+  $("year").innerHTML = years.map((x) => `<option value="${x.y}">${x.y === "unknown" ? "Unknown date" : x.y} (${fmt(x.n)} new species)</option>`).join("");
   $("landing").hidden = true;
   $("viewer").hidden = false;
   $("deck").classList.add("nudge"); // one gentle hint that the cards can be swiped through
@@ -1247,8 +1122,8 @@ function parsePasted(text) {
 
 /* ------------------------------------------------------------------ demo */
 
-// The demo behaves like an eBird life list: one row per species with the date it was first seen,
-// so it shows new species only, the same as a real life list file does.
+// The demo is a small made up "all my eBird data" file: many checklists, a few places in four countries.
+// It shows new species only (the cards), and the summary adds how many species were seen in the year.
 function demoRows() {
   let seed = 20260101;
   const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -1258,13 +1133,10 @@ function demoRows() {
   const used = new Set();
   const take = (n, from) => {
     const out = [];
-    while (out.length < n) {
-      const b = from[Math.floor(rnd() * from.length)];
-      if (!used.has(b.i)) { used.add(b.i); out.push(b); }
-    }
+    while (out.length < n) { const b = from[Math.floor(rnd() * from.length)]; if (!used.has(b.i)) { used.add(b.i); out.push(b); } }
     return out;
   };
-  // where the demo year's new birds came from: several places in four countries
+  const seen = take(236, pool).concat(take(4, threatened)); // 240 species seen this year
   const places = [
     ["Willow Creek Marsh", "US-CA", 3], ["Ridge Trail", "US-CA", 2], ["Harbor Point", "US-WA", 1],
     ["Rainforest Lodge", "CR-A", 4], ["Cloud Forest Reserve", "CR-P", 3],
@@ -1272,18 +1144,28 @@ function demoRows() {
   ];
   const weighted = places.flatMap((p) => Array(p[2]).fill(p));
   const rows = [];
-  rows.isLife = true;
-  rows.dropped = [];
-  const add = (b, date, p) => rows.push({ sid: "S" + rows.length, en: b.en, sci: b.sci, count: 1 + Math.floor(rnd() * 6), state: p[1], loc: p[0], date, hour: null, dur: 0, dist: 0 });
-  const iso = (y, m, d) => y + "-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0");
-  // this year: 148 ordinary birds plus a few threatened ones, with a busy stretch in the middle of the year
-  take(144, pool).concat(take(4, threatened)).forEach((b) => {
-    const month = Math.min(12, 1 + Math.floor(Math.pow(rnd(), 0.9) * 12));
-    add(b, iso(year, month, 1 + Math.floor(rnd() * 27)), weighted[Math.floor(rnd() * weighted.length)]);
+  for (let k = 0; k < 80; k++) {
+    const month = Math.min(11, Math.floor(Math.pow(rnd(), 0.9) * 12));
+    const date = year + "-" + String(month + 1).padStart(2, "0") + "-" + String(1 + Math.floor(rnd() * 27)).padStart(2, "0");
+    const hour = rnd() < 0.7 ? 6 + rnd() * 2.5 : 8 + rnd() * 9;
+    const p = weighted[Math.floor(rnd() * weighted.length)];
+    const n = 12 + Math.floor(rnd() * 30), inList = new Set();
+    for (let j = 0; j < n; j++) {
+      const b = seen[Math.floor(Math.pow(rnd(), 1.5) * seen.length)];
+      if (inList.has(b.i)) continue;
+      inList.add(b.i);
+      rows.push({ sid: "S" + k, en: b.en, sci: b.sci, count: 1 + Math.floor(rnd() * 8), state: p[1], loc: p[0], date, hour, dur: 30 + Math.floor(rnd() * 150), dist: Math.round(rnd() * 60) / 10 });
+    }
+  }
+  // make sure every one of the 240 was seen at least once, and the threatened four
+  const got = new Set(rows.map((r) => r.sci));
+  seen.filter((b) => !got.has(b.sci)).forEach((b, i) => {
+    const p = weighted[Math.floor(rnd() * weighted.length)];
+    rows.push({ sid: "X" + i, en: b.en, sci: b.sci, count: 1, state: p[1], loc: p[0], date: year + "-0" + (1 + (i % 9)) + "-15", hour: 8, dur: 60, dist: 1 });
   });
-  // earlier years, so the life list grows from a number that is not zero
-  take(55, pool).forEach((b) => add(b, iso(year - 1, 1 + Math.floor(rnd() * 12), 1 + Math.floor(rnd() * 27)), places[Math.floor(rnd() * 3)]));
-  take(25, pool).forEach((b) => add(b, iso(year - 2, 1 + Math.floor(rnd() * 12), 1 + Math.floor(rnd() * 27)), places[Math.floor(rnd() * 3)]));
+  // older history: about a third of them were already on the list before this year, so the list grows from a real number
+  const before = take(60, pool);
+  before.concat(seen.slice(0, 80)).forEach((b, i) => rows.push({ sid: "H" + i, en: b.en, sci: b.sci, count: 1, state: "US-CA", loc: "Old patch", date: (year - 1) + "-0" + (1 + (i % 9)) + "-10", hour: 8, dur: 60, dist: 1 }));
   return rows;
 }
 
