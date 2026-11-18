@@ -7,3 +7,6 @@ Thumbs.db
 *.csv
 MyEBirdData*
 ebird_*
+
+# local design previews (contain personal data)
+previews/

@@ -250,7 +250,11 @@ function analyze(rows, year) {
   } else {
     topLoc = [...locCount.entries()].sort((a, b) => b[1] - a[1])[0] || null;
     topLoc = topLoc && [cleanLoc(topLoc[0]), topLoc[1]];
-    lists.forEach((l) => { if (l.state) countries.add(l.state.split("-")[0]); });
+    lists.forEach((l) => {
+      if (l.state) { const cc = l.state.split("-")[0]; countries.add(cc); countryCount.set(cc, (countryCount.get(cc) || 0) + 1); }
+      const p = cleanLoc(l.loc);
+      if (p) placeCount.set(p, (placeCount.get(p) || 0) + 1);
+    });
   }
   const topCountries = [...countryCount.entries()].sort((a, b) => b[1] - a[1]);
   const lifeBefore = [...firstSeen.values()].filter((d) => d < year + "-01-01").length;
@@ -311,7 +315,7 @@ function analyze(rows, year) {
   else persona = { name: "The Steady Observer", why: "You show up, you look up, you write it down." };
 
   return {
-    firstRow, byIdx: new Map(species.map((e) => [e.b.i, e])), life, topCountries, lifeBefore, lifeTotal: lifeBefore + lifers.length,
+    places: [...placeCount.entries()].sort((a, b) => b[1] - a[1]), firstRow, byIdx: new Map(species.map((e) => [e.b.i, e])), life, topCountries, lifeBefore, lifeTotal: lifeBefore + lifers.length,
     year, skipped, skipInfo, totalRows: allYearRows.length + (rows.dropped || []).filter((d) => d.date.startsWith(year)).length, nLists: lists.size, nSpecies: species.length, nBirds: birds,
     hours, km, nLocs: locCount.size, countries: countries.size, topLoc, species, byFreq, byCount, families,
     biggest, smallest, threatened, lifers, months, peakMonth, medianHour, streak, streakEnd, persona,
@@ -329,6 +333,106 @@ const hourLabel = (h) => {
 const mosaic = (list, cols = 5, max = 20) =>
   `<div class="mosaic${cols === 4 ? " cols4" : cols === 3 ? " cols3" : ""}">${list.slice(0, max).map((b) => img(b)).join("")}</div>`;
 const durBig = (h) => (h >= 48 ? `${(h / 24).toFixed(1)}<span class="unit"> days</span>` : `${fmt(h)}<span class="unit"> hours</span>`);
+
+/* ------------------------------------------------------- summary card */
+
+let summaryName = "";
+let summaryLayout = "A";
+const poss = (n) => (/s$/i.test(n) ? n + "\u2019" : n + "\u2019s");
+const clip = (t, n) => (t.length > n ? t.slice(0, n - 1).trimEnd() + "\u2026" : t);
+
+function summaryData(s) {
+  const life = s.life, y = s.year;
+  const where = (s.topCountries.length >= 2 ? s.topCountries.slice(0, 3).map(([cc, n]) => [regionName(cc), n]) : s.places.slice(0, 3))
+    .map(([n, c]) => [clip(n, 24), c]);
+  // stickers: threatened birds first, then the ones that mattered most, so the strip is varied and relevant
+  const pool = life ? s.lifers.map((l) => l.b) : s.byFreq.map((e) => e.b);
+  const seen = new Set(), strip = [];
+  const add = (b) => { if (b && b.sticker && !seen.has(b.i)) { seen.add(b.i); strip.push(b); } };
+  s.threatened.slice(0, 2).forEach((e) => add(e.b));
+  pool.forEach(add);
+  const tiles = life
+    ? [[fmt(s.lifeTotal), "life list"], [fmt(s.families.length), "families"], [fmt(s.countries), s.countries === 1 ? "country" : "countries"], [(s.lifers.length / 12).toFixed(1), "new a month"]]
+    : [[fmt(s.lifeTotal), "life list"], [fmt(s.nSpecies), "seen in " + y], [fmt(s.nLists), "checklists"], s.hours >= 1 ? [fmt(s.hours), "hours out"] : [fmt(s.countries), s.countries === 1 ? "country" : "countries"]];
+  const facts = [];
+  if (s.families[0]) facts.push(["Top family", s.families[0].name]);
+  if (s.threatened[0]) facts.push(["Rarest find", s.threatened[0].b.en + " (" + (IUCN_NAME[s.threatened[0].b.iucn] || s.threatened[0].b.iucn) + ")", s.threatened[0].b.en + " (" + s.threatened[0].b.iucn + ")"]);
+  if (s.months[s.peakMonth]) facts.push(["Best month", MONTH_NAMES[s.peakMonth]]);
+  return {
+    y, life, where, strip, tiles, facts, persona: s.persona,
+    newCount: s.lifers.length, lifeTotal: s.lifeTotal, seenCount: life ? null : s.nSpecies,
+    nLists: s.nLists, hours: s.hours, countries: s.countries,
+    title: summaryName ? esc(poss(summaryName)) + " " + esc(y) + " in birds" : "My " + esc(y) + " in birds",
+  };
+}
+
+// a small footer note pinned to the bottom edge of the card
+const SUM_FOOT = '<div class="sum-foot"><p>Made with Birding Wrapped. Follow the creator on Instagram <b>@himanshuguptapro</b></p>' +
+  '<p>Stickers: huashu-bird-sticker (CC BY 4.0, AI-generated).</p></div>';
+
+// A: dark card with a stat row, bars for where, a strip of stickers
+function summaryA(d) {
+  const max = Math.max(1, ...d.where.map((w) => w[1]));
+  const unit = d.life ? "new" : "checklists";
+  return `
+    <section class="slide t-night sum sumA">
+      <p class="k">Birding Wrapped</p>
+      <p class="sum-title">${d.title}</p>
+      <div class="a-hero"><b>${fmt(d.newCount)}</b><span>new species in ${esc(d.y)}</span></div>
+      <div class="a-tiles">${d.tiles.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("")}</div>
+      ${d.where.length ? `<p class="sum-h">Where (${unit})</p>${d.where.map(([n, c]) => `<div class="wr"><span class="wn">${esc(n)}</span><span class="bar"><i style="width:${Math.max(6, Math.round((c / max) * 100))}%"></i></span><span class="wc">${fmt(c)}</span></div>`).join("")}` : ""}
+      <div class="a-strip">${d.strip.slice(0, 6).map((b) => img(b)).join("")}</div>
+      <p class="a-facts">${d.facts.map(([k, v]) => "<b>" + esc(k) + ":</b> " + esc(v)).join("<br>")}</p>
+      ${SUM_FOOT}
+    </section>`;
+}
+
+// B: poster, one huge number with a cloud of stickers
+function summaryB(d) {
+  const stats = [fmt(d.lifeTotal) + " on your life list"];
+  if (d.seenCount != null) stats.push(fmt(d.seenCount) + " seen in " + d.y);
+  stats.push(d.countries + (d.countries === 1 ? " country" : " countries"));
+  return `
+    <section class="slide t-dusk sum sumB">
+      <p class="k">Birding Wrapped</p>
+      <p class="sum-title">${d.title}</p>
+      <div class="b-num">${fmt(d.newCount)}</div>
+      <p class="b-label">new species in ${esc(d.y)}</p>
+      <div class="mosaic">${d.strip.slice(0, 15).map((b) => img(b)).join("")}</div>
+      <p class="b-stats">${stats.map(esc).join(" \u00b7 ")}</p>
+      <div class="b-pills">${d.where.map(([n, c]) => `<span>${esc(clip(n, 15))} <b>${fmt(c)}</b></span>`).join("")}</div>
+      <p class="b-persona">${esc(d.persona.name)}</p>
+      ${SUM_FOOT}
+    </section>`;
+}
+
+// C: receipt, a paper slip with dotted leaders
+function summaryC(d) {
+  const rows = [["New species", fmt(d.newCount)], ["Life list", fmt(d.lifeTotal)]];
+  if (d.seenCount != null) { rows.push(["Seen in " + d.y, fmt(d.seenCount)]); rows.push(["Checklists", fmt(d.nLists)]); if (d.hours >= 1) rows.push(["Hours in the field", fmt(d.hours)]); }
+  rows.push([d.countries === 1 ? "Country" : "Countries", fmt(d.countries)]);
+  d.facts.forEach(([k, v, short]) => rows.push([k, short || v]));
+  const where = d.where.map(([n, c]) => esc(n) + " " + fmt(c)).join("  \u00b7  ");
+  return `
+    <section class="slide t-forest sum sumC">
+      <div class="paper">
+        <p class="c-brand">BIRDING WRAPPED</p>
+        <p class="c-title">${d.title}</p>
+        <div class="c-rule"></div>
+        ${rows.map(([k, v]) => `<div class="rc"><span>${esc(k)}</span><i></i><b>${esc(v)}</b></div>`).join("")}
+        <div class="c-rule"></div>
+        <p class="c-where"><span>WHERE</span>${where}</p>
+        <div class="c-strip">${d.strip.slice(0, 6).map((b) => img(b)).join("")}</div>
+        <p class="c-persona">${esc(d.persona.name)}</p>
+      </div>
+      ${SUM_FOOT}
+    </section>`;
+}
+
+function summarySlide(s) {
+  const d = summaryData(s);
+  return summaryLayout === "B" ? summaryB(d) : summaryLayout === "C" ? summaryC(d) : summaryA(d);
+}
 
 function buildSlides(s) {
   const out = [];
@@ -474,19 +578,7 @@ function buildSlides(s) {
     </section>`);
 
   // 11. summary
-  out.push(`
-    <section class="slide t-night">
-      <p class="k">${esc(y)} in a nutshell</p>
-      <h2>${fmt(s.nSpecies)} species.</h2>
-      ${mosaic(spBirds.slice(0, 15), 5, 15)}
-      <div class="chips">
-        <div class="chip"><b>${fmt(s.nLists)}</b>checklists</div>
-        ${s.hours >= 1 ? `<div class="chip"><b>${fmt(s.hours)} h</b>in the field</div>` : ""}
-        ${s.lifers.length ? `<div class="chip"><b>${fmt(s.lifers.length)}</b>new species</div>` : ""}
-      </div>
-      <p class="foot" style="margin-top:auto;font-size:13px;line-height:18px;opacity:.95">Made with Birding Wrapped. Follow the creator on Instagram <b>@himanshuguptapro</b></p>
-      <p class="foot" style="margin-top:8px">Stickers: huashu-bird-sticker (CC BY 4.0, AI-generated).</p>
-    </section>`);
+  out.push(summarySlide(s));
 
   return out;
 }
@@ -609,19 +701,7 @@ function buildLifeSlides(s, mark, spBirds) {
       ${mark}
     </section>`);
 
-  out.push(`
-    <section class="slide t-night">
-      <p class="k">${esc(y)} in a nutshell</p>
-      <h2>${fmt(lifers.length)} new species.</h2>
-      ${mosaic(list, 5, 15)}
-      <div class="chips">
-        <div class="chip"><b>${fmt(s.lifeTotal)}</b>life list</div>
-        ${s.countries ? `<div class="chip"><b>${s.countries}</b>${s.countries === 1 ? "country" : "countries"}</div>` : ""}
-        ${s.families.length ? `<div class="chip"><b>${s.families.length}</b>families</div>` : ""}
-      </div>
-      <p class="foot" style="margin-top:auto;font-size:13px;line-height:18px;opacity:.95">Made with Birding Wrapped. Follow the creator on Instagram <b>@himanshuguptapro</b></p>
-      <p class="foot" style="margin-top:8px">Stickers: huashu-bird-sticker (CC BY 4.0, AI-generated).</p>
-    </section>`);
+  out.push(summarySlide(s));
   return out;
 }
 const sp0 = (e) => e.b;
@@ -1065,6 +1145,10 @@ function init() {
   $("slides").addEventListener("keydown", (e) => {
     if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("img[data-b]")) { e.preventDefault(); showBubble(e.target); }
   });
+  const refreshSummary = () => { if (!CURRENT) return; const keep = cur; mountSlides(buildSlides(CURRENT)); show(keep); };
+  let nameTimer;
+  $("nameIn").addEventListener("input", (e) => { summaryName = e.target.value.trim(); clearTimeout(nameTimer); nameTimer = setTimeout(refreshSummary, 250); });
+  $("labLayout").addEventListener("change", (e) => { summaryLayout = e.target.value; refreshSummary(); });
   $("share").addEventListener("click", () => openDialog("share"));
   $("download").addEventListener("click", () => openDialog("download"));
   $("dlgGo").addEventListener("click", runDialog);
@@ -1107,6 +1191,10 @@ function init() {
 
   // ?demo=1&slide=3 jumps straight into the demo (handy for screenshots)
   const q = new URLSearchParams(location.search);
+  // dev/preview switches: ?lab=1 shows the layout picker, ?summary=B and ?name=Asha set them up front
+  if (q.has("lab")) $("labBox").hidden = false;
+  if (q.has("summary") && "ABC".includes(q.get("summary"))) { summaryLayout = q.get("summary"); $("labLayout").value = summaryLayout; }
+  if (q.has("name")) { summaryName = q.get("name").trim().slice(0, 24); $("nameIn").value = summaryName; }
   if (q.has("demo")) $("demo").click();
   if (q.has("csv")) { // dev: ?csv=http://127.0.0.1:5199/file.csv&year=2025
     fetch(q.get("csv")).then((r) => r.text()).then(async (txt) => {

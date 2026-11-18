@@ -280,3 +280,123 @@ dialog .hint { margin: 10px 0 0; }
 .dot.iu-EN { background: #f08a3c; } .dot.iu-CR { background: #ee5a4d; } .dot.iu-EW, .dot.iu-EX { background: #b34ad0; }
 @keyframes bubbleIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .bubble { animation: none; } }
+
+/* ---------- one page summary card: three layouts ---------- */
+.namebox { width: 100%; max-width: 440px; margin-top: 14px; display: flex; align-items: center; gap: 10px; }
+.namebox label { font-size: 13px; color: var(--mut); flex: none; }
+.namebox label span { opacity: .7; }
+.namebox input { flex: 1; min-width: 0; padding: 8px 12px; font: 500 14px var(--sans); color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.namebox input:focus-visible { outline: 2px solid var(--moss-text); outline-offset: 2px; }
+
+.slide.sum { padding: 84px 24px 84px; }
+.sum .sum-h { text-transform: uppercase; letter-spacing: .14em; font-size: 9.5px; font-weight: 600; opacity: .72; margin: 0 0 6px; }
+.sum .k { margin-bottom: 8px; }
+.sumC img { filter: none; }
+
+/* A */
+.sumA .a-hero { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+.sumA .a-hero b { font: 800 66px/0.9 var(--serif); letter-spacing: -.04em; }
+.sumA .a-hero span { font-size: 14px; line-height: 18px; max-width: 110px; opacity: .95; }
+.sumA .a-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 14px; }
+.sumA .a-tiles div { background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.24); border-radius: 10px; padding: 7px 7px 6px; }
+.sumA .a-tiles b { display: block; font: 800 16px/1.1 var(--serif); }
+.sumA .a-tiles span { display: block; font-size: 9.5px; line-height: 12px; opacity: .85; }
+.sumA .wr { display: grid; grid-template-columns: 104px minmax(0, 1fr) 26px; gap: 8px; align-items: center; font-size: 11px; line-height: 14px; margin-bottom: 5px; }
+.sumA .wn { white-space: nowrap; overflow: hidden; }
+.sumA .bar { display: block; height: 6px; background: rgba(255,255,255,.18); border-radius: 3px; overflow: hidden; }
+.sumA .bar i { display: block; height: 100%; background: #fff; border-radius: 3px; }
+.sumA .wc { text-align: right; opacity: .88; }
+.sumA .a-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin: 8px -3px 6px; }
+.sumA .a-strip img { width: 100%; min-width: 0; aspect-ratio: 1; object-fit: contain; }
+.sumA .a-facts { font-size: 10.5px; line-height: 15px; opacity: .92; margin: 0; }
+.sumA .a-facts b { font-weight: 600; opacity: .8; }
+
+/* B */
+.sumB { align-items: center; text-align: center; }
+.sumB .b-num { font: 800 124px/0.88 var(--serif); letter-spacing: -.05em; margin-top: 2px; }
+.sumB .b-label { margin: 2px 0 6px; font-size: 15px; line-height: 20px; }
+.sumB .mosaic { width: 100%; margin: 4px 0 6px; }
+.sumB .b-stats { font-size: 12px; line-height: 16px; margin: 4px 0 8px; opacity: .95; }
+.sumB .b-pills { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 8px; }
+.sumB .b-pills span { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.3); border-radius: 9999px; padding: 4px 10px; font-size: 11px; line-height: 14px; }
+.sumB .b-pills b { font-weight: 800; margin-left: 3px; }
+.sumB .b-persona { font: 800 18px/22px var(--serif); margin: 2px 0 0; }
+
+/* C */
+.sumC { justify-content: flex-start; }
+.sumC .paper { background: #f6f0e4; color: #1d2a24; border-radius: 12px; padding: 14px 15px 12px; box-shadow: 0 8px 22px rgba(0,0,0,.28); }
+.sumC .c-brand { margin: 0; font: 600 9.5px/12px var(--sans); letter-spacing: .22em; opacity: .65; text-align: center; }
+.sumC .c-title { margin: 3px 0 8px; font: 800 19px/22px var(--serif); text-align: center; }
+.sumC .c-rule { border-top: 1.5px dashed rgba(29,42,36,.45); margin: 6px 0; }
+.sumC .rc { display: flex; align-items: baseline; gap: 6px; font-size: 11.5px; line-height: 19px; }
+.sumC .rc i { flex: 1; border-bottom: 1.5px dotted rgba(29,42,36,.45); transform: translateY(-3px); min-width: 8px; }
+.sumC .rc b { font-weight: 800; text-align: right; }
+.sumC .c-where { margin: 4px 0 6px; font-size: 11px; line-height: 15px; }
+.sumC .c-where span { display: block; font-size: 9px; letter-spacing: .18em; opacity: .6; font-weight: 600; margin-bottom: 1px; }
+.sumC .c-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 4px -2px 0; }
+.sumC .c-strip img { width: 100%; min-width: 0; aspect-ratio: 1; object-fit: contain; }
+.sumC .c-persona { margin: 4px 0 0; text-align: center; font: 800 12px/16px var(--serif); opacity: .85; }
+.sumC .foot { margin-top: auto; }
+
+.sum .sum-title { margin: 0 0 10px; font: 800 21px/25px var(--serif); letter-spacing: -.015em; }
+.sumB .sum-title { margin-bottom: 4px; }
+.sumB .b-num { font-size: 112px; }
+.sumB .b-pills { gap: 5px; }
+.sumB .b-pills span { padding: 4px 9px; font-size: 10.5px; }
+.sumB .b-persona { margin-top: 8px; margin-bottom: 10px; }
+.sumC .rc { font-size: 12.5px; line-height: 21px; align-items: flex-start; }
+.sumC .rc span { flex: none; }
+.sumC .rc i { align-self: flex-end; margin-bottom: 6px; transform: none; }
+.sumC .rc b { max-width: 60%; line-height: 17px; padding-top: 2px; }
+.sumC .c-title { font-size: 21px; line-height: 25px; }
+.sumC .c-where { font-size: 12px; line-height: 16px; }
+.sumC .c-persona { font-size: 14px; line-height: 18px; margin-top: 6px; }
+/* tighten the summary cards so nothing overflows the safe area */
+.slide.sum { padding: 76px 24px 76px; }
+.sumA .a-strip { margin: 6px -3px 4px; }
+.sumA .a-facts { line-height: 14px; }
+.sumB .b-num { font-size: 100px; }
+.sumB .b-label { margin: 0 0 4px; }
+.sumB .mosaic { margin: 2px 0 4px; }
+.sumB .b-stats { margin: 2px 0 6px; }
+.sumB .b-persona { margin: 4px 0 8px; }
+.sumC .paper { padding: 12px 14px 10px; }
+.sumC .rc { line-height: 20px; }
+.sumC .rc i { margin-bottom: 5px; }
+
+/* footer note on the summary card: small, pinned to the bottom */
+.slide.sum { padding-bottom: 56px; }
+.sum-foot { position: absolute; left: 24px; right: 24px; bottom: 24px; font-size: 8.5px; line-height: 12px; opacity: .85; text-align: left; }
+.sum-foot p { margin: 0; }
+.sum-foot p + p { margin-top: 2px; opacity: .8; }
+.sum-foot b { font-weight: 600; }
+.sumB .sum-foot { text-align: center; }
+
+/* use the room the pinned footer freed up */
+.sumA .a-hero { margin: 4px 0 14px; }
+.sumA .a-hero b { font-size: 84px; }
+.sumA .a-hero span { font-size: 15px; line-height: 19px; max-width: 120px; }
+.sumA .a-tiles { gap: 8px; margin: 4px 0 20px; }
+.sumA .a-tiles div { padding: 9px 8px 8px; border-radius: 12px; }
+.sumA .a-tiles b { font-size: 19px; }
+.sumA .a-tiles span { font-size: 10.5px; line-height: 13px; }
+.sumA .sum-h { font-size: 10px; margin-bottom: 8px; }
+.sumA .wr { grid-template-columns: 112px minmax(0, 1fr) 30px; margin-bottom: 9px; font-size: 12px; line-height: 15px; }
+.sumA .bar { height: 7px; }
+.sumA .a-strip { grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 14px -3px 12px; }
+.sumA .a-facts { font-size: 12px; line-height: 18px; margin-top: 4px; }
+.sumB .b-num { font-size: 112px; }
+.sumB .b-label { font-size: 16px; }
+.sumB .b-stats { font-size: 12.5px; margin: 6px 0 10px; }
+.sumB .b-pills span { font-size: 11px; padding: 5px 10px; }
+.sumB .b-persona { font-size: 20px; line-height: 24px; margin: 6px 0 0; }
+.sumC { justify-content: center; }
+.sumC .paper { padding: 16px 16px 14px; }
+.sumC .rc { font-size: 13.5px; line-height: 23px; }
+.sumC .c-title { font-size: 22px; line-height: 26px; margin-bottom: 10px; }
+.sumC .c-where { font-size: 12.5px; line-height: 17px; margin: 6px 0 8px; }
+.sumC .c-strip { margin: 8px -2px 2px; }
+.sumC .c-persona { font-size: 15px; line-height: 20px; margin-top: 8px; }
+.sumA .a-hero b { font-size: 76px; }
+.sumA .a-tiles { margin-bottom: 16px; }
+.sumA .a-strip { margin: 10px -3px 8px; }
