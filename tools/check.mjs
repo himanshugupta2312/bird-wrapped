@@ -29,11 +29,18 @@ async function landsOn(p) {
   const loc = r.headers.get("location");
   return { status: r.status, to: loc ? new URL(loc, base + p) : null };
 }
-const mustRedirect = ["/wrapped.", "/wrapped,", "/wrapped;", "/wrapped:", "/wrapped!", "/wrapped)", "/wrapped-", "/wrapped%20", "/wrapped/.", "/wrapped//", "/Wrapped", "/WRAPPED"];
+const mustRedirect = ["/wrapped.", "/wrapped,", "/wrapped;", "/wrapped:", "/wrapped!", "/wrapped)", "/wrapped-", "/wrapped%20", "/Wrapped", "/WRAPPED"];
 for (const p of mustRedirect) {
   try {
     const r = await landsOn(p);
     ok(r.status >= 300 && r.status < 400 && r.to && r.to.pathname === "/wrapped", p + " goes to /wrapped (" + r.status + (r.to ? " to " + r.to.pathname : "") + ")");
+  } catch (e) { ok(false, p + " " + e.message); }
+}
+for (const p of ["/wrapped/.", "/wrapped//"]) { // browsers and Vercel tidy these before our rules see them, so they only have to land on the app
+  try {
+    const r = await fetch(base + p, { redirect: "follow" });
+    const u = new URL(r.url);
+    ok(r.ok && (u.pathname === "/wrapped" || u.pathname === "/wrapped/"), p + " still lands on the app (" + r.status + " at " + u.pathname + ")");
   } catch (e) { ok(false, p + " " + e.message); }
 }
 try { // a trailing slash either redirects or serves the page: it must never 404
