@@ -130,6 +130,7 @@ function parseEbird(text) {
       out.dropped.push({ date, name: get(r, c.en) || get(r, c.sci), reason: "uncountable" });
       continue;
     }
+    if (+date.slice(0, 4) < 1950) out.placeholder = (out.placeholder || 0) + 1; // no real date known
     const n = parseInt(get(r, c.count), 10);
     out.push({
       sid: get(r, c.sid) || date + "|" + get(r, c.loc), en: get(r, c.en), sci: get(r, c.sci), count: Number.isFinite(n) ? n : 0,
@@ -199,7 +200,7 @@ const dayNum = (d) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 1
 function listYears(rows) {
   const m = new Map();
   rows.forEach((r) => { const y = r.date.slice(0, 4); m.set(y, (m.get(y) || new Set()).add(rows.isLife ? r.sci : r.sid)); });
-  return [...m.entries()].map(([y, s]) => ({ y, n: s.size })).sort((a, b) => b.y - a.y);
+  return [...m.entries()].map(([y, s]) => ({ y, n: s.size })).filter((x) => +x.y >= 1950).sort((a, b) => b.y - a.y);
 }
 
 function analyze(rows, year) {
@@ -961,7 +962,8 @@ const SKIP_TEXT = {
 function renderSkips(s) {
   const box = $("skipbox");
   const ns = s.noSticker || [];
-  if (!s.skipped && !ns.length) { box.hidden = true; box.innerHTML = ""; return; }
+  const ph = ROWS.placeholder || 0; // species with no known date
+  if (!s.skipped && !ns.length && !ph) { box.hidden = true; box.innerHTML = ""; return; }
   const what = ROWS.isLife ? "entries" : "observations";
   const groups = [...s.skipInfo.entries()].map(([reason, m]) => {
     const names = [...m.entries()].sort((x, y) => y[1] - x[1]);
@@ -971,11 +973,15 @@ function renderSkips(s) {
   const stickerless = ns.length
     ? `<li><b>${fmt(ns.length)}</b> ${ns.length === 1 ? "species is" : "species are"} counted in every total but ${ns.length === 1 ? "has" : "have"} no picture. eBird has newer species splits than the sticker set, so there is no sticker for ${ns.length === 1 ? "it" : "them"} yet.<br><span class="names">${ns.slice(0, 8).map(esc).join(", ")}${ns.length > 8 ? ` and ${ns.length - 8} more` : ""}</span></li>`
     : "";
+  const dated = ph
+    ? `<li><b>${fmt(ph)}</b> ${ph === 1 ? "species has" : "species have"} no real date (eBird shows 1 Jan 1900 when it doesn't know). ${ph === 1 ? "It counts" : "They count"} in your life list total but not in any one year.</li>`
+    : "";
   const bits = [];
   if (s.skipped) bits.push(`${fmt(s.skipped)} of ${fmt(s.totalRows)} ${what} in ${esc(s.year)} were left out`);
+  if (ph) bits.push(`${fmt(ph)} ${ph === 1 ? "species" : "species"} with no known date`);
   if (ns.length) bits.push(`${fmt(ns.length)} ${ns.length === 1 ? "species" : "species"} counted without a sticker`);
   box.hidden = false;
-  box.innerHTML = `<details><summary>${bits.join(", ")}. Why?</summary><ul>${groups}${stickerless}</ul>` +
+  box.innerHTML = `<details><summary>${bits.join(", ")}. Why?</summary><ul>${groups}${stickerless}${dated}</ul>` +
     (s.skipped ? `<p>Left-out birds aren't counted in any card${ROWS.isLife ? ", and a bird missing from an earlier year can show up as new later" : ""}.</p>` : "") + `</details>`;
 }
 
