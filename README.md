@@ -93,15 +93,25 @@ node tools/build-data.mjs path/to/species.json
 
 That file is too large for the jsDelivr CDN, so download it from `raw.githubusercontent.com`. The stickers themselves are not stored here: the page loads them from jsDelivr and falls back to GitHub raw if a file is refused.
 
+## The thumbnail sheet
+
+Cards that must show every new bird (a big year can be hundreds, or more than a thousand) draw tiny pictures from one sheet, `site/data/atlas.webp`, instead of loading hundreds of full size stickers, which would each need about 4 MB of memory. Up to about 40 birds the real stickers are used. To rebuild the sheet (about 2 minutes, downloads every sticker):
+
+```
+npm i --no-save sharp
+node tools/build-atlas.mjs
+```
+
 ## Layout
 
 ```
-site/            what gets deployed: index.html, app.js, style.css, favicon.svg, data/birds.json
+site/            what gets deployed: index.html, app.js, style.css, favicon.svg, data/birds.json, data/atlas.webp
 tools/
   serve.mjs      local server for the standalone app
   preview.mjs    local server that mounts the app inside a copy of the portfolio site
   check.mjs      smoke test for any deployment
   build-data.mjs builds the bird index
+  build-atlas.mjs builds the thumbnail sheet (needs sharp)
 vercel.json      serves the app at /wrapped/ (and at the root)
 start.bat        Windows shortcut for serve.mjs
 NOTICE.md        attribution and licences

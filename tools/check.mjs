@@ -35,6 +35,13 @@ let birds = null;
 try { birds = await (await get("/wrapped/data/birds.json")).json(); } catch { /* reported below */ }
 ok(!!birds && Array.isArray(birds.rows) && birds.rows.length > 10000, "bird index has " + (birds && birds.rows ? birds.rows.length : 0) + " species");
 
+// 3b. the thumbnail sheet used by the "new species" wall
+try {
+  const meta = await (await get("/wrapped/data/atlas.json")).json();
+  const img = await get("/wrapped/data/atlas.webp");
+  ok(img.ok && (img.headers.get("content-type") || "").includes("image") && meta.count === (birds ? birds.rows.length : -1), "thumbnail sheet loads (" + meta.tile + "px tiles, " + meta.count + " species)");
+} catch (e) { ok(false, "thumbnail sheet: " + e.message); }
+
 // 4. standalone safety: no link may point at a path that only exists on another site
 const internal = [...new Set([...html.matchAll(/href="(\/[^"]*)"/g)].map((m) => m[1]))].filter((h) => !h.startsWith("/wrapped"));
 ok(internal.length === 0, internal.length ? "links that only work on another site: " + internal.join(", ") : "no links depend on another site");

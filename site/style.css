@@ -366,3 +366,12 @@ dialog .hint { margin: 10px 0 0; }
 /* tap target is the bird, not its box (see hitSticker) */
 .slide img[data-b] { cursor: inherit; }
 .slide img[data-b].hov { filter: drop-shadow(0 0 5px rgba(255,255,255,.6)); }
+
+/* wall of every new bird (see wallHtml) */
+.wallbox { flex: 1 1 0; min-height: 48px; margin: 10px 0 8px; overflow: hidden; }
+.wall { display: grid; justify-content: center; align-content: start; }
+.wall img { display: block; object-fit: contain; }
+.wall .w { display: block; background-repeat: no-repeat; background-image: url(/wrapped/data/atlas.webp); background-size: var(--bs); cursor: inherit; }
+.wall .w.hov { filter: brightness(1.35); }
+.wall .w.picked { outline: 1.5px solid #fff; outline-offset: 0; position: relative; z-index: 1; }
+.slide .mark { padding-top: 12px; }

@@ -12,7 +12,8 @@ Birding Wrapped uses third party data and artwork. Keep this notice, and the cre
 ## Changes made
 
 - `site/data/birds.json` is a compact index built from huashu-bird-sticker's `data/species.json` (selected fields only: scientific name, English name, order, family, sticker path, mass, habitat, migration, IUCN category). Build it with `node tools/build-data.mjs`.
-- The stickers themselves are not copied into this repository. They load from the original repository through jsDelivr (falling back to raw.githubusercontent.com). On the story cards they are scaled, rotated and arranged, and nothing else is done to them.
+- `site/data/atlas.webp` is a scaled down copy of every sticker (40 pixel tiles on one sheet), built with `node tools/build-atlas.mjs`. It is used only where hundreds of birds have to be drawn at once, so the same credit and CC BY 4.0 licence apply to it.
+- The full size stickers themselves are not copied into this repository. They load from the original repository through jsDelivr (falling back to raw.githubusercontent.com). On the story cards they are scaled, rotated and arranged, and nothing else is done to them.
 
 ## Not affiliated
 

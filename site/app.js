@@ -11,6 +11,7 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (n) => Math.round(n).toLocaleString("en-US");
 
+let ATLAS = null;            // {tile, cols, rows}: one sheet holding a tiny picture of every sticker (see tools/build-atlas.mjs)
 let BIRDS = null;            // [{sci,en,order,family,familyEn,sticker,massG,habitat,migration,iucn}]
 let bySci = new Map();
 let byEn = new Map();
@@ -27,6 +28,7 @@ async function loadBirds() {
   const res = await fetch("/wrapped/data/birds.json");
   if (!res.ok) throw new Error("Could not load data/birds.json (" + res.status + ")");
   const j = await res.json();
+  try { const ar = await fetch("/wrapped/data/atlas.json"); ATLAS = ar.ok ? await ar.json() : null; } catch (e) { ATLAS = null; }
   BIRDS = j.rows.map((r) => Object.fromEntries(j.cols.map((c, i) => [c, r[i]])));
   BIRDS.forEach((b, i) => {
     b.i = i;
@@ -363,6 +365,35 @@ const hourLabel = (h) => {
   const hh = Math.floor(h) % 24, ap = hh >= 12 ? "pm" : "am", h12 = hh % 12 === 0 ? 12 : hh % 12;
   return `${h12} ${ap}`;
 };
+// A wall of birds that fits any number into the space it has: the cells shrink as the count grows.
+// Up to about 40 birds they are the real stickers. Beyond that they are tiny pictures cut from one sheet (the atlas),
+// because hundreds of full size stickers would each need about 4 MB of memory to draw.
+const wallHtml = (birds) => {
+  const ids = [...new Set(birds.filter((b) => b && b.sticker && !b.synthetic).map((b) => b.i))].sort((a, b) => a - b);
+  return '<div class="wallbox" data-ids="' + ids.join(",") + '"></div>';
+};
+function buildWalls() {
+  document.querySelectorAll("#slides .wallbox").forEach((box) => {
+    let ids = (box.dataset.ids || "").split(",").filter(Boolean).map(Number);
+    if (!ATLAS && ids.length > 60) ids = ids.slice(0, 60); // no atlas: keep it to a number the browser can draw
+    const n = ids.length, W = box.clientWidth, H = box.clientHeight - 6;
+    if (!n || !W || H < 20) { box.innerHTML = ""; return; }
+    let cell = Math.max(3, Math.min(64, Math.floor(Math.sqrt((W * H) / n))));
+    let cols = Math.max(1, Math.floor(W / cell));
+    // grow in half pixel steps so the wall uses as much of the space as it can
+    while (cell < 64 && Math.ceil(n / Math.max(1, Math.floor(W / (cell + 0.5)))) * (cell + 0.5) <= H) cell += 0.5;
+    cols = Math.max(1, Math.floor(W / cell));
+    while (cell > 3 && Math.ceil(n / cols) * cell > H) { cell -= 0.5; cols = Math.max(1, Math.floor(W / cell)); }
+    let html;
+    if (ATLAS && cell < 44) {
+      html = '<div class="wall" style="grid-template-columns:repeat(' + cols + ',' + cell + 'px);--bs:' + ATLAS.cols * cell + "px " + ATLAS.rows * cell + 'px">' +
+        ids.map((id) => '<i class="w" data-b="' + id + '" style="width:' + cell + "px;height:" + cell + "px;background-position:-" + (id % ATLAS.cols) * cell + "px -" + Math.floor(id / ATLAS.cols) * cell + 'px"></i>').join("") + "</div>";
+    } else {
+      html = '<div class="wall" style="grid-template-columns:repeat(' + cols + "," + cell + 'px)">' + ids.map((id) => img(BIRDS[id], "", 'width="' + cell + '" height="' + cell + '"')).join("") + "</div>";
+    }
+    box.innerHTML = html;
+  });
+}
 const mosaic = (list, cols = 5, max = 20) =>
   `<div class="mosaic${cols === 4 ? " cols4" : cols === 3 ? " cols3" : ""}">${list.filter((b) => b && b.sticker).slice(0, max).map((b) => img(b)).join("")}</div>`;
 const durBig = (h) => (h >= 48 ? `${(h / 24).toFixed(1)}<span class="unit"> days</span>` : `${fmt(h)}<span class="unit"> hours</span>`);
@@ -468,7 +499,7 @@ function buildSlides(s) {
       <p class="k">New to your list</p>
       <div class="big md">${fmt(s.lifers.length)}</div>
       <p class="sub pop">${s.lifers.length === 1 ? "new species" : "new species"} you hadn't recorded before ${esc(y)}.</p>
-      ${mosaic(s.lifers.slice(0, 8).map((l) => l.b), 4, 8)}
+      ${wallHtml(s.lifers.map((l) => l.b))}
       <p class="sub pop" style="margin-top:8px;font-size:13px">First one: <b>${esc(s.lifers[0].b.en)}</b>, ${esc(dFull(s.lifers[0].date))}.</p>
       ${mark}
     </section>`);
@@ -577,7 +608,7 @@ function buildLifeSlides(s, mark, spBirds) {
       <p class="k">New species</p>
       <div class="big">${fmt(lifers.length)}</div>
       <p class="sub pop">${s.undated ? "species with no known date. They count in your life list of " + fmt(s.lifeTotal) + ", but not in any one year." : "lifers in " + esc(y) + ". Your life list grew from " + fmt(s.lifeBefore) + " to " + fmt(s.lifeTotal) + "."}</p>
-      ${mosaic(list, 5, 15)}
+      ${wallHtml(list)}
       ${mark}
     </section>`);
 
@@ -780,6 +811,8 @@ function warmMasks() {
   setTimeout(step, 300);
 }
 function stickerAt(cx, cy) {
+  const hit = document.elementFromPoint(cx, cy);
+  if (hit && hit.classList && hit.classList.contains("w") && hit.dataset.b && slideEls[cur] && slideEls[cur].contains(hit)) return hit;
   const sl = slideEls[cur];
   if (!sl) return null;
   const list = sl.querySelectorAll("img[data-b]");
@@ -935,6 +968,8 @@ function mountSlides(html) {
   $("slides").innerHTML = html.join("");
   slideEls = [...$("slides").children];
   slidesVer++; rendered.clear();
+  buildWalls();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(buildWalls);
   show(0, true);
   warmMasks();
 }
