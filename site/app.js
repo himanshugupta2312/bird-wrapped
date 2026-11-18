@@ -688,6 +688,56 @@ function bubbleHtml(bird) {
   return lines.join("");
 }
 
+// A sticker's box is bigger than the bird, so the box is not a good tap target. We read each sticker's transparency
+// once (at a small size) and count a tap as "on the bird" only if it lands on, or within a few pixels of, a visible pixel.
+const maskCache = new Map();
+function maskFor(im) {
+  const key = im.currentSrc || im.src;
+  if (maskCache.has(key)) return maskCache.get(key);
+  const nw = im.naturalWidth, nh = im.naturalHeight;
+  if (!im.complete || !nw || !nh) return undefined; // not loaded yet, try again later
+  let m = null;
+  try {
+    const f = 96 / Math.max(nw, nh), W = Math.max(1, Math.round(nw * f)), H = Math.max(1, Math.round(nh * f));
+    const cv = document.createElement("canvas");
+    cv.width = W; cv.height = H;
+    const cx = cv.getContext("2d", { willReadFrequently: true });
+    cx.drawImage(im, 0, 0, W, H);
+    const d = cx.getImageData(0, 0, W, H).data, a = new Uint8Array(W * H);
+    for (let i = 0; i < a.length; i++) a[i] = d[i * 4 + 3];
+    m = { W, H, a };
+  } catch (e) { m = null; } // pixels not readable: fall back to the whole box
+  maskCache.set(key, m);
+  return m;
+}
+function hitSticker(im, cx, cy) {
+  const r = im.getBoundingClientRect();
+  if (!r.width || cx < r.left || cx > r.right || cy < r.top || cy > r.bottom) return false;
+  const bw = im.offsetWidth, bh = im.offsetHeight, nw = im.naturalWidth, nh = im.naturalHeight;
+  if (!bw || !bh || !nw || !nh) return false;
+  const m = maskFor(im);
+  if (m === undefined || m === null) return m === null; // unreadable: the box; still loading: no
+  const x = ((cx - r.left) / r.width) * bw, y = ((cy - r.top) / r.height) * bh;
+  const f = Math.min(bw / nw, bh / nh), cw = nw * f, ch = nh * f;
+  const px = ((x - (bw - cw) / 2) / cw) * m.W, py = ((y - (bh - ch) / 2) / ch) * m.H;
+  const tol = 6; // card pixels of forgiveness around the bird, so a fingertip still counts
+  const rx = (tol / cw) * m.W, ry = (tol / ch) * m.H;
+  for (let yy = Math.floor(py - ry); yy <= Math.ceil(py + ry); yy++) {
+    if (yy < 0 || yy >= m.H) continue;
+    for (let xx = Math.floor(px - rx); xx <= Math.ceil(px + rx); xx++) {
+      if (xx >= 0 && xx < m.W && m.a[yy * m.W + xx] > 40) return true;
+    }
+  }
+  return false;
+}
+function stickerAt(cx, cy) {
+  const sl = slideEls[cur];
+  if (!sl) return null;
+  const list = sl.querySelectorAll("img[data-b]");
+  for (let i = list.length - 1; i >= 0; i--) if (hitSticker(list[i], cx, cy)) return list[i];
+  return null;
+}
+
 function showBubble(imgEl) {
   if (!CURRENT || !BIRDS) return;
   if (bubbleFor === imgEl) { hideBubble(); return; }
@@ -1166,12 +1216,7 @@ function init() {
   $("tapNext").addEventListener("click", () => { if (swallowClick) return; if (bubbleFor) hideBubble(); else show(cur + 1); });
   document.addEventListener("click", (e) => { // a tap on empty page space closes it too
     if (swallowClick) return;
-    if (bubbleFor && e.target.closest && !e.target.closest("#bubble, img[data-b], .tap, button, a, select, label, summary, textarea, input, dialog")) hideBubble();
-  });
-  $("slides").addEventListener("click", (e) => {
-    if (swallowClick) return;
-    const t = e.target.closest ? e.target.closest("img[data-b]") : null;
-    if (t) { e.stopPropagation(); showBubble(t); }
+    if (bubbleFor && e.target.closest && !e.target.closest("#scaler, #bubble, img[data-b], .tap, button, a, select, label, summary, textarea, input, dialog")) hideBubble();
   });
   $("slides").addEventListener("keydown", (e) => {
     if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("img[data-b]")) { e.preventDefault(); showBubble(e.target); }
@@ -1182,12 +1227,32 @@ function init() {
   initSwipe();
   $("scaler").addEventListener("click", (e) => {
     if (swallowClick) return;
-    const t = e.target;
-    if (t.closest && (t.closest("img[data-b]") || t.closest(".tap"))) return; // birds and the keyboard buttons handle themselves
+    if (e.target.closest && e.target.closest(".tap")) return; // the keyboard buttons handle themselves
+    // a click with no pointer position (screen reader or script activating the bird) goes straight to that bird
+    if (e.detail === 0 && e.target.matches && e.target.matches("img[data-b]")) { showBubble(e.target); return; }
+    const im = stickerAt(e.clientX, e.clientY);
+    if (im) { showBubble(im); return; }
     if (bubbleFor) { hideBubble(); return; }
     const r = $("scaler").getBoundingClientRect();
     show((e.clientX - r.left) / r.width < 0.34 ? cur - 1 : cur + 1);
   });
+  // highlight and pointer cursor only while the mouse is over a bird, not its empty box
+  let hovered = null, hoverRaf = 0;
+  const clearHover = () => { if (hovered) hovered.classList.remove("hov"); hovered = null; $("scaler").style.cursor = ""; };
+  $("scaler").addEventListener("mousemove", (e) => {
+    if (hoverRaf || $("slides").classList.contains("dragging")) return;
+    const cx = e.clientX, cy = e.clientY;
+    hoverRaf = requestAnimationFrame(() => {
+      hoverRaf = 0;
+      const im = stickerAt(cx, cy);
+      if (im === hovered) return;
+      if (hovered) hovered.classList.remove("hov");
+      hovered = im;
+      if (im) im.classList.add("hov");
+      $("scaler").style.cursor = im ? "pointer" : "";
+    });
+  });
+  $("scaler").addEventListener("mouseleave", clearHover);
   $("cue").addEventListener("click", () => show($("cue").dataset.go === "next" ? 1 : 0));
   $("share").addEventListener("click", () => openDialog("share"));
   $("download").addEventListener("click", () => openDialog("download"));
