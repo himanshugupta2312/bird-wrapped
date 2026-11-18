@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;800&family=Geist+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/wrapped/style.css?v=9">
+<link rel="stylesheet" href="/wrapped/style.css?v=10">
 </head>
 <body>
 
@@ -84,6 +84,8 @@
     </div>
   </div>
 
+  <div class="cue-row"><button id="cue" class="cue" type="button">See the details</button></div>
+
   <div class="controls">
     <button id="prev" class="btn ghost" type="button">Back</button>
     <button id="share" class="btn" type="button">Share to Instagram</button>
@@ -91,7 +93,6 @@
     <button id="next" class="btn ghost" type="button">Next</button>
   </div>
   <div class="namebox"><label for="nameIn">Name on the summary card <span>(optional)</span></label><input id="nameIn" type="text" maxlength="24" autocomplete="off" placeholder="Your name"></div>
-  <div class="namebox" id="labBox" hidden><label for="labLayout">Summary layout (preview only)</label><select id="labLayout"><option value="A">A: Glance</option><option value="B">B: Poster</option><option value="C">C: Receipt</option></select></div>
   <p class="tip">Tip: tap any bird on a card to see its details.</p>
   <p id="vstatus" class="status" role="status"></p>
   <div id="skipbox" class="skipbox" hidden></div>
@@ -137,6 +138,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="/wrapped/app.js?v=11"></script>
+<script src="/wrapped/app.js?v=14"></script>
 </body>
 </html>

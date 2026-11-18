@@ -337,7 +337,6 @@ const durBig = (h) => (h >= 48 ? `${(h / 24).toFixed(1)}<span class="unit"> days
 /* ------------------------------------------------------- summary card */
 
 let summaryName = "";
-let summaryLayout = "A";
 const poss = (n) => (/s$/i.test(n) ? n + "\u2019" : n + "\u2019s");
 const clip = (t, n) => (t.length > n ? t.slice(0, n - 1).trimEnd() + "\u2026" : t);
 
@@ -373,65 +372,21 @@ const SUM_FOOT = '<div class="sum-foot"><p>Made with Birding Wrapped. Follow the
 // A: dark card with a stat row, bars for where, a strip of stickers
 function summaryA(d) {
   const max = Math.max(1, ...d.where.map((w) => w[1]));
-  const unit = d.life ? "new" : "checklists";
   return `
     <section class="slide t-night sum sumA">
       <p class="k">Birding Wrapped</p>
       <p class="sum-title">${d.title}</p>
       <div class="a-hero"><b>${fmt(d.newCount)}</b><span>new species in ${esc(d.y)}</span></div>
       <div class="a-tiles">${d.tiles.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("")}</div>
-      ${d.where.length ? `<p class="sum-h">Where (${unit})</p>${d.where.map(([n, c]) => `<div class="wr"><span class="wn">${esc(n)}</span><span class="bar"><i style="width:${Math.max(6, Math.round((c / max) * 100))}%"></i></span><span class="wc">${fmt(c)}</span></div>`).join("")}` : ""}
+      ${d.where.length ? `<p class="sum-h">${d.life ? "Where the new birds came from" : "Where you birded (checklists)"}</p>${d.where.map(([n, c]) => `<div class="wr"><span class="wn">${esc(n)}</span><span class="bar"><i style="width:${Math.max(6, Math.round((c / max) * 100))}%"></i></span><span class="wc">${fmt(c)}</span></div>`).join("")}` : ""}
       <div class="a-strip">${d.strip.slice(0, 6).map((b) => img(b)).join("")}</div>
       <p class="a-facts">${d.facts.map(([k, v]) => "<b>" + esc(k) + ":</b> " + esc(v)).join("<br>")}</p>
       ${SUM_FOOT}
     </section>`;
 }
 
-// B: poster, one huge number with a cloud of stickers
-function summaryB(d) {
-  const stats = [fmt(d.lifeTotal) + " on your life list"];
-  if (d.seenCount != null) stats.push(fmt(d.seenCount) + " seen in " + d.y);
-  stats.push(d.countries + (d.countries === 1 ? " country" : " countries"));
-  return `
-    <section class="slide t-dusk sum sumB">
-      <p class="k">Birding Wrapped</p>
-      <p class="sum-title">${d.title}</p>
-      <div class="b-num">${fmt(d.newCount)}</div>
-      <p class="b-label">new species in ${esc(d.y)}</p>
-      <div class="mosaic">${d.strip.slice(0, 15).map((b) => img(b)).join("")}</div>
-      <p class="b-stats">${stats.map(esc).join(" \u00b7 ")}</p>
-      <div class="b-pills">${d.where.map(([n, c]) => `<span>${esc(clip(n, 15))} <b>${fmt(c)}</b></span>`).join("")}</div>
-      <p class="b-persona">${esc(d.persona.name)}</p>
-      ${SUM_FOOT}
-    </section>`;
-}
-
-// C: receipt, a paper slip with dotted leaders
-function summaryC(d) {
-  const rows = [["New species", fmt(d.newCount)], ["Life list", fmt(d.lifeTotal)]];
-  if (d.seenCount != null) { rows.push(["Seen in " + d.y, fmt(d.seenCount)]); rows.push(["Checklists", fmt(d.nLists)]); if (d.hours >= 1) rows.push(["Hours in the field", fmt(d.hours)]); }
-  rows.push([d.countries === 1 ? "Country" : "Countries", fmt(d.countries)]);
-  d.facts.forEach(([k, v, short]) => rows.push([k, short || v]));
-  const where = d.where.map(([n, c]) => esc(n) + " " + fmt(c)).join("  \u00b7  ");
-  return `
-    <section class="slide t-forest sum sumC">
-      <div class="paper">
-        <p class="c-brand">BIRDING WRAPPED</p>
-        <p class="c-title">${d.title}</p>
-        <div class="c-rule"></div>
-        ${rows.map(([k, v]) => `<div class="rc"><span>${esc(k)}</span><i></i><b>${esc(v)}</b></div>`).join("")}
-        <div class="c-rule"></div>
-        <p class="c-where"><span>WHERE</span>${where}</p>
-        <div class="c-strip">${d.strip.slice(0, 6).map((b) => img(b)).join("")}</div>
-        <p class="c-persona">${esc(d.persona.name)}</p>
-      </div>
-      ${SUM_FOOT}
-    </section>`;
-}
-
 function summarySlide(s) {
-  const d = summaryData(s);
-  return summaryLayout === "B" ? summaryB(d) : summaryLayout === "C" ? summaryC(d) : summaryA(d);
+  return summaryA(summaryData(s));
 }
 
 function buildSlides(s) {
@@ -443,15 +398,7 @@ function buildSlides(s) {
 
   if (s.life) return buildLifeSlides(s, mark, spBirds);
 
-  // 1. intro
-  out.push(`
-    <section class="slide t-forest">
-      <p class="k">Birding Wrapped</p>
-      <h2>Your ${esc(y)}<br>in birds.</h2>
-      <p class="sub pop" style="margin-top:10px">${fmt(s.nLists)} checklists. ${fmt(s.nSpecies)} species. Let's look back.</p>
-      ${mosaic(spBirds.slice(0, 10), 5, 10)}
-      ${mark}
-    </section>`);
+  out.push(summarySlide(s)); // the summary is the cover
 
   // 2. species
   const delta = s.prevCount ? s.nSpecies - s.prevCount : null;
@@ -577,8 +524,6 @@ function buildSlides(s) {
       ${mark}
     </section>`);
 
-  // 11. summary
-  out.push(summarySlide(s));
 
   return out;
 }
@@ -591,14 +536,7 @@ function buildLifeSlides(s, mark, spBirds) {
   const gram = (g) => (g >= 1000 ? `${(g / 1000).toFixed(1)} kg` : `${g.toFixed(g < 10 ? 1 : 0)} g`);
   const dFmt = (d) => `${+d.slice(8, 10)} ${MONTH_NAMES[+d.slice(5, 7) - 1].slice(0, 3)}`;
 
-  out.push(`
-    <section class="slide t-forest">
-      <p class="k">Birding Wrapped</p>
-      <h2>Your ${esc(y)}<br>lifers.</h2>
-      <p class="sub pop" style="margin-top:10px">${fmt(lifers.length)} new species added to your life list.</p>
-      ${mosaic(list, 5, 10)}
-      ${mark}
-    </section>`);
+  out.push(summarySlide(s)); // the summary is the cover
 
   out.push(`
     <section class="slide t-sky">
@@ -701,7 +639,6 @@ function buildLifeSlides(s, mark, spBirds) {
       ${mark}
     </section>`);
 
-  out.push(summarySlide(s));
   return out;
 }
 const sp0 = (e) => e.b;
@@ -792,6 +729,20 @@ function show(i) {
   $("tapPrev").classList.toggle("end", cur === 0);
   $("tapNext").classList.toggle("end", cur === slideEls.length - 1);
   if (cur !== 0) $("deck").classList.remove("nudge");
+  updateCue();
+}
+
+// the button under the card: "See the details" on the summary, "Back to summary" on the last card
+function updateCue() {
+  const cue = $("cue");
+  if (!cue) return;
+  const n = slideEls.length, first = cur === 0, last = n > 1 && cur === n - 1;
+  const right = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  const left = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>';
+  cue.classList.toggle("on", n > 1 && (first || last));
+  cue.classList.toggle("first", n > 1 && first);
+  cue.dataset.go = first ? "next" : "home";
+  cue.innerHTML = first ? "See the details " + right : left + " Back to summary";
 }
 function mountSlides(html) {
   $("slides").innerHTML = html.join("");
@@ -800,7 +751,7 @@ function mountSlides(html) {
   show(0);
 }
 function fit() {
-  const s = Math.max(0.5, Math.min((window.innerWidth - 32) / 360, (window.innerHeight - 190) / 640, 1.6));
+  const s = Math.max(0.5, Math.min((window.innerWidth - 32) / 360, (window.innerHeight - 260) / 640, 1.6));
   $("scaler").style.transform = `scale(${s})`;
   $("deck").style.width = 360 * s + "px";
   $("deck").style.height = 640 * s + "px";
@@ -920,7 +871,7 @@ let preparing = false;   // background rendering in progress
 let slidesVer = 0;       // bumps whenever the cards are rebuilt
 const rendered = new Map(); // "ver:index" -> { name, blob }
 const rkey = (i) => slidesVer + ":" + i;
-const slideTitle = (el) => ((el.querySelector(".k") || {}).textContent || "").trim() || "Card";
+const slideTitle = (el) => el.classList.contains("sum") ? "Summary" : ((el.querySelector(".k") || {}).textContent || "").trim() || "Card";
 const msg = (t) => { $("dlgStatus").textContent = t; };
 
 function openDialog(mode) {
@@ -1148,7 +1099,7 @@ function init() {
   const refreshSummary = () => { if (!CURRENT) return; const keep = cur; mountSlides(buildSlides(CURRENT)); show(keep); };
   let nameTimer;
   $("nameIn").addEventListener("input", (e) => { summaryName = e.target.value.trim(); clearTimeout(nameTimer); nameTimer = setTimeout(refreshSummary, 250); });
-  $("labLayout").addEventListener("change", (e) => { summaryLayout = e.target.value; refreshSummary(); });
+  $("cue").addEventListener("click", () => show($("cue").dataset.go === "next" ? 1 : 0));
   $("share").addEventListener("click", () => openDialog("share"));
   $("download").addEventListener("click", () => openDialog("download"));
   $("dlgGo").addEventListener("click", runDialog);
@@ -1191,9 +1142,7 @@ function init() {
 
   // ?demo=1&slide=3 jumps straight into the demo (handy for screenshots)
   const q = new URLSearchParams(location.search);
-  // dev/preview switches: ?lab=1 shows the layout picker, ?summary=B and ?name=Asha set them up front
-  if (q.has("lab")) $("labBox").hidden = false;
-  if (q.has("summary") && "ABC".includes(q.get("summary"))) { summaryLayout = q.get("summary"); $("labLayout").value = summaryLayout; }
+  // dev/preview switch: ?name=Asha fills in the name up front
   if (q.has("name")) { summaryName = q.get("name").trim().slice(0, 24); $("nameIn").value = summaryName; }
   if (q.has("demo")) $("demo").click();
   if (q.has("csv")) { // dev: ?csv=http://127.0.0.1:5199/file.csv&year=2025
