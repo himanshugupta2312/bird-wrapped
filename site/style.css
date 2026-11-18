@@ -384,3 +384,6 @@ dialog .hint { margin: 10px 0 0; }
 .slide img[data-b]:focus-visible { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px rgba(255,255,255,.85)); }
 .wall .w.picked { outline: none; filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 3px rgba(255,255,255,.9)) brightness(1.15); }
 .tap:focus-visible { outline: none; }
+
+.skipbox .lifetip { margin: 10px 0 0; padding: 10px 12px; font-size: 13px; line-height: 19px; color: var(--mut); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.skipbox .lifetip b { color: var(--fg); font-weight: 600; }

@@ -1,0 +1,35 @@
+Row #,Taxon Order,Category,Common Name,Scientific Name,Count,Location,S/P,Date,LocID,SubID,Exotic,Countable
+1,1001,species,Somali Ostrich,Struthio molybdophanes,1,Willow Marsh,BR-SP,05 Jan 2025,L1,S1,,1
+2,1002,species,Blue Duck,Hymenolaimus malacorhynchos,1,Willow Marsh,US-FL,06 Feb 2025,L2,S2,,1
+3,1003,species,Colombian Chachalaca,Ortalis columbiana,1,Willow Marsh,US-FL,07 Mar 2025,L3,S3,,1
+4,1004,species,Mountain Bamboo Partridge,Bambusicola fytchii,1,Willow Marsh,US-FL,08 Apr 2025,L4,S4,,1
+5,1005,species,Pavonine Cuckoo,Dromococcyx pavoninus,1,Willow Marsh,BR-SP,09 May 2025,L5,S5,,1
+6,1006,species,Painted Sandgrouse,Pterocles indicus,1,Willow Marsh,US-FL,10 Jun 2025,L6,S6,,1
+7,1007,species,Yellow-eyed Pigeon,Columba eversmanni,1,Willow Marsh,US-FL,11 Jul 2025,L7,S7,,1
+8,1008,species,Geelvink Fruit Dove,Ptilinopus speciosus,1,Willow Marsh,US-FL,12 Aug 2025,L8,S8,,1
+9,1009,species,South Island Takahe,Porphyrio hochstetteri,1,Willow Marsh,BR-SP,13 Sep 2025,L9,S9,,1
+10,1010,species,Imperial Snipe,Gallinago imperialis,1,Willow Marsh,US-FL,14 Oct 2025,L10,S10,,1
+11,1011,species,Caspian Tern,Hydroprogne caspia,1,Willow Marsh,US-FL,15 Nov 2025,L11,S11,,1
+12,1012,species,Ainley's Storm Petrel,Hydrobates cheimomnestes,1,Willow Marsh,US-FL,16 Dec 2025,L12,S12,,1
+13,1013,species,Auckland Shag,Leucocarbo colensoi,1,Willow Marsh,BR-SP,17 Jan 2025,L13,S13,,1
+14,1014,species,Ocellated Poorwill,Nyctiphrynus ocellatus,1,Willow Marsh,US-FL,18 Feb 2025,L14,S14,,1
+15,1015,species,Bates's Swift,Apus batesi,1,Willow Marsh,US-FL,19 Mar 2025,L15,S15,,1
+16,1016,species,Golden-bellied Starfrontlet,Coeligena bonapartei,1,Willow Marsh,US-FL,20 Apr 2025,L16,S16,,1
+17,1017,species,Golden-crowned Emerald,Cynanthus auriceps,1,Willow Marsh,BR-SP,21 May 2025,L17,S17,,1
+18,1018,species,Elf Owl,Micrathene whitneyi,1,Willow Marsh,US-FL,22 Jun 2025,L18,S18,,1
+19,1019,species,Barred Owl,Strix varia,1,Willow Marsh,US-FL,23 Jul 2025,L19,S19,,1
+20,1020,species,Brahminy Kite,Haliastur indus,1,Willow Marsh,US-FL,24 Aug 2025,L20,S20,,1
+21,1021,species,Western Dwarf Hornbill,Horizocerus hartlaubi,1,Ridge Trail,US-FL,09 Jan 2024,L21,S21,,1
+22,1022,species,Crested Kingfisher,Megaceryle lugubris,1,Ridge Trail,US-FL,09 Feb 2024,L22,S22,,1
+23,1023,species,Yellow-fronted Barbet,Psilopogon flavifrons,1,Ridge Trail,US-FL,09 Mar 2024,L23,S23,,1
+24,1024,species,African Piculet,Verreauxia africana,1,Ridge Trail,US-FL,09 Apr 2024,L24,S24,,1
+25,1025,species,Bearded Woodpecker,Chloropicus namaquus,1,Ridge Trail,US-FL,09 May 2024,L25,S25,,1
+26,1026,species,Barred Parakeet,Bolborhynchus lineola,1,Ridge Trail,US-FL,09 Jun 2024,L26,S26,,1
+27,1027,species,Cordilleran Parakeet,Psittacara frontatus,1,Ridge Trail,US-FL,09 Jul 2024,L27,S27,,1
+28,1028,species,Blue Lorikeet,Vini peruviana,1,Ridge Trail,US-FL,09 Aug 2024,L28,S28,,1
+29,1029,species,Striolated Manakin,Machaeropterus striolatus,1,Old record,US-FL,01 Jan 1900,L29,S29,,1
+30,1030,species,Olive-green Tyrannulet,Phylloscartes virescens,1,Old record,US-FL,01 Jan 1900,L30,S30,,1
+31,1031,species,Malabar Starling,Sturnia blythii,1,Lakeside,IN-KA,02 Jun 2025,L31,S31,,1
+32,1032,species,Lilac-crowned Amazon,Amazona finschi,1,City park,US-FL,03 Jul 2025,L32,S32,X,0
+33,1033,spuh,gull sp.,Larus sp.,1,Harbor,US-FL,04 Aug 2025,L33,S33,,0
+34,1034,slash,Western/Eastern Meadowlark,Sturnella neglecta/magna,1,Prairie,US-FL,05 Sep 2025,L34,S34,,0

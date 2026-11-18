@@ -880,7 +880,7 @@ function renderSkips(s) {
   const ns = s.noSticker || [];
   const ph = s.undated ? 0 : ROWS.placeholder || 0; // species with no known date (shown on their own under Unknown date)
   const lifeTip = ROWS.isLife && !s.undated
-    ? '<p class="lifetip">A life list file only records first sightings, so it can\'t say how many species you saw in total this year. Use your full eBird data (Download My Data) to add a "seen this year" number to the summary.</p>'
+    ? '<p class="lifetip"><b>Want a "seen this year" number on the summary?</b> A life list file only records the first time you saw each bird, so it can\'t say how many species you saw in total this year. Your full eBird data can: <a href="https://ebird.org/downloadMyData" target="_blank" rel="noopener">Download My Data</a> (eBird emails you a zip with MyEBirdData.csv) and drop that file in instead.</p>'
     : "";
   if (!s.skipped && !ns.length && !ph && !lifeTip) { box.hidden = true; box.innerHTML = ""; return; }
   const what = ROWS.isLife ? "entries" : "observations";

@@ -10,3 +10,6 @@ ebird_*
 
 # local design previews (contain personal data)
 previews/
+
+# test fixtures are made up, so they may be committed
+!tests/fixtures/*.csv
