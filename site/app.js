@@ -198,17 +198,25 @@ function resolve(sci, en) {
 const dayNum = (d) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) / 86400000;
 
 function listYears(rows) {
-  const m = new Map();
-  rows.forEach((r) => { const y = r.date.slice(0, 4); m.set(y, (m.get(y) || new Set()).add(rows.isLife ? r.sci : r.sid)); });
-  return [...m.entries()].map(([y, s]) => ({ y, n: s.size })).filter((x) => +x.y >= 1950).sort((a, b) => b.y - a.y);
+  const m = new Map(), unknown = new Set();
+  rows.forEach((r) => {
+    const key = rows.isLife ? r.sci : r.sid, y = r.date.slice(0, 4);
+    if (+y < 1950) unknown.add(key); // eBird writes 1 Jan 1900 when it doesn't know the date
+    else m.set(y, (m.get(y) || new Set()).add(key));
+  });
+  const list = [...m.entries()].map(([y, set]) => ({ y, n: set.size })).sort((p, q) => q.y - p.y);
+  if (unknown.size) list.push({ y: "unknown", n: unknown.size });
+  return list;
 }
 
 function analyze(rows, year) {
+  const undated = year === "unknown";
+  const inY = (d) => !!d && (undated ? +d.slice(0, 4) < 1950 : d.startsWith(year));
   // match every row once
   let skipped = 0;
   const skipInfo = new Map(); // reason -> Map(name -> rows), for the selected year only
   const noteSkip = (r, reason, name) => {
-    if (!r.date.startsWith(year)) return;
+    if (!inY(r.date)) return;
     skipped++;
     const m = skipInfo.get(reason) || new Map();
     m.set(name, (m.get(name) || 0) + 1);
@@ -228,9 +236,9 @@ function analyze(rows, year) {
     if (!f || o.date < f) { firstSeen.set(o.b.i, o.date); firstRow.set(o.b.i, o); }
   }
 
-  const yr = obs.filter((o) => o.date.startsWith(year));
+  const yr = obs.filter((o) => inY(o.date));
   const noSticker = [...new Set(yr.filter((o) => o.b.synthetic).map((o) => o.b.en))];
-  const allYearRows = rows.filter((r) => r.date.startsWith(year));
+  const allYearRows = rows.filter((r) => inY(r.date));
 
   const lists = new Map(); // sid -> {date,hour,dur,dist,loc,state}
   for (const r of allYearRows) {
@@ -247,7 +255,7 @@ function analyze(rows, year) {
   const species = [...sp.values()];
 
   const lifers = species
-    .filter((e) => (firstSeen.get(e.b.i) || "").startsWith(year))
+    .filter((e) => inY(firstSeen.get(e.b.i)))
     .map((e) => ({ b: e.b, date: firstSeen.get(e.b.i) }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -280,7 +288,7 @@ function analyze(rows, year) {
     });
   }
   const topCountries = [...countryCount.entries()].sort((a, b) => b[1] - a[1]);
-  const lifeBefore = [...firstSeen.values()].filter((d) => d < year + "-01-01").length;
+  const lifeBefore = undated ? 0 : [...firstSeen.values()].filter((d) => d < year + "-01-01").length;
 
   const byFreq = [...species].sort((a, b) => b.lists.size - a.lists.size || b.total - a.total);
   const byCount = [...species].sort((a, b) => b.total - a.total);
@@ -325,7 +333,8 @@ function analyze(rows, year) {
 
   const topShare = topLoc ? topLoc[1] / Math.max(1, lists.size) : 0;
   let persona;
-  if (life) {
+  if (undated) persona = { name: "The Archivist", why: "These birds are on your list, but nobody wrote down when. They still count." };
+  else if (life) {
     const peak = Math.max(...months);
     if (countries.size >= 3) persona = { name: "The Globetrotter", why: `New birds from ${countries.size} countries this year.` };
     else if (lists.size && peak / lists.size > 0.4) persona = { name: "The Migration Chaser", why: "Most of your new birds came in one burst. You know when the good stuff moves through." };
@@ -340,7 +349,7 @@ function analyze(rows, year) {
 
   return {
     places: [...placeCount.entries()].sort((a, b) => b[1] - a[1]), noSticker, firstRow, byIdx: new Map(species.map((e) => [e.b.i, e])), life, topCountries, lifeBefore, lifeTotal: lifeBefore + lifers.length,
-    year, skipped, skipInfo, totalRows: allYearRows.length + (rows.dropped || []).filter((d) => d.date.startsWith(year)).length, nLists: lists.size, nSpecies: species.length, nBirds: birds,
+    year, undated, isIn: inY, inYear: undated ? "with no known date" : "in " + year, yl: undated ? "Unknown date" : year, skipped, skipInfo, totalRows: allYearRows.length + (rows.dropped || []).filter((d) => inY(d.date)).length, nLists: lists.size, nSpecies: species.length, nBirds: birds,
     hours, km, nLocs: locCount.size, countries: countries.size, topLoc, species, byFreq, byCount, families,
     biggest, smallest, threatened, lifers, months, peakMonth, medianHour, streak, streakEnd, persona,
     prevCount: prevSp.size, firstDate: days[0], lastDate: days[days.length - 1],
@@ -375,17 +384,18 @@ function summaryData(s) {
   s.threatened.slice(0, 2).forEach((e) => add(e.b));
   pool.forEach(add);
   const tiles = life
-    ? [[fmt(s.lifeTotal), "life list"], [fmt(s.families.length), "families"], [fmt(s.countries), s.countries === 1 ? "country" : "countries"], [(s.lifers.length / 12).toFixed(1), "new a month"]]
+    ? [[fmt(s.lifeTotal), "life list"], [fmt(s.families.length), "families"], [fmt(s.countries), s.countries === 1 ? "country" : "countries"], ...(s.undated ? [] : [[(s.lifers.length / 12).toFixed(1), "new a month"]])]
     : [[fmt(s.lifeTotal), "life list"], [fmt(s.nSpecies), "seen in " + y], [fmt(s.nLists), "checklists"], s.hours >= 1 ? [fmt(s.hours), "hours out"] : [fmt(s.countries), s.countries === 1 ? "country" : "countries"]];
   const facts = [];
   if (s.families[0]) facts.push(["Top family", s.families[0].name]);
   if (s.threatened[0]) facts.push(["Rarest find", s.threatened[0].b.en + " (" + (IUCN_NAME[s.threatened[0].b.iucn] || s.threatened[0].b.iucn) + ")", s.threatened[0].b.en + " (" + s.threatened[0].b.iucn + ")"]);
-  if (s.months[s.peakMonth]) facts.push(["Best month", MONTH_NAMES[s.peakMonth]]);
+  if (!s.undated && s.months[s.peakMonth]) facts.push(["Best month", MONTH_NAMES[s.peakMonth]]);
   return {
     y, life, where, strip, tiles, facts, persona: s.persona,
     newCount: s.lifers.length, lifeTotal: s.lifeTotal, seenCount: life ? null : s.nSpecies,
     nLists: s.nLists, hours: s.hours, countries: s.countries,
-    title: summaryName ? esc(poss(summaryName)) + " " + esc(y) + " in birds" : "My " + esc(y) + " in birds",
+    title: s.undated ? (summaryName ? esc(poss(summaryName)) + " undated birds" : "My undated birds") : (summaryName ? esc(poss(summaryName)) + " " + esc(y) + " in birds" : "My " + esc(y) + " in birds"),
+    inYear: s.inYear,
   };
 }
 
@@ -400,7 +410,7 @@ function summaryA(d) {
     <section class="slide t-night sum sumA">
       <p class="k">Birding Wrapped</p>
       <p class="sum-title">${d.title}</p>
-      <div class="a-hero"><b>${fmt(d.newCount)}</b><span>new species in ${esc(d.y)}</span></div>
+      <div class="a-hero"><b>${fmt(d.newCount)}</b><span>new species ${esc(d.inYear)}</span></div>
       <div class="a-tiles">${d.tiles.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("")}</div>
       ${d.where.length ? `<p class="sum-h">${d.life ? "Where the new birds came from" : "Where you birded (checklists)"}</p>${d.where.map(([n, c]) => `<div class="wr"><span class="wn">${esc(n)}</span><span class="bar"><i style="width:${Math.max(6, Math.round((c / max) * 100))}%"></i></span><span class="wc">${fmt(c)}</span></div>`).join("")}` : ""}
       <div class="a-strip">${d.strip.slice(0, 6).map((b) => img(b)).join("")}</div>
@@ -417,7 +427,7 @@ function buildSlides(s) {
   const out = [];
   const y = s.year;
   const sp = (e) => e.b;
-  const mark = `<div class="mark">Birding Wrapped · ${esc(y)}</div>`;
+  const mark = `<div class="mark">Birding Wrapped · ${esc(s.yl)}</div>`;
   const spBirds = s.byFreq.map(sp);
 
   if (s.life) return buildLifeSlides(s, mark, spBirds);
@@ -566,7 +576,7 @@ function buildLifeSlides(s, mark, spBirds) {
     <section class="slide t-sky">
       <p class="k">New species</p>
       <div class="big">${fmt(lifers.length)}</div>
-      <p class="sub pop">lifers in ${esc(y)}. Your life list grew from ${fmt(s.lifeBefore)} to ${fmt(s.lifeTotal)}.</p>
+      <p class="sub pop">${s.undated ? "species with no known date. They count in your life list of " + fmt(s.lifeTotal) + ", but not in any one year." : "lifers in " + esc(y) + ". Your life list grew from " + fmt(s.lifeBefore) + " to " + fmt(s.lifeTotal) + "."}</p>
       ${mosaic(list, 5, 15)}
       ${mark}
     </section>`);
@@ -584,7 +594,7 @@ function buildLifeSlides(s, mark, spBirds) {
     </section>`);
   }
 
-  if (lifers.length > 1) {
+  if (lifers.length > 1 && !s.undated) {
     const a = lifers[0], z = lifers[lifers.length - 1];
     out.push(`
     <section class="slide t-dusk">
@@ -641,7 +651,7 @@ function buildLifeSlides(s, mark, spBirds) {
   }
 
   const max = Math.max(1, ...s.months);
-  out.push(`
+  if (!s.undated) out.push(`
     <section class="slide t-sky">
       <p class="k">Your rhythm</p>
       <h2>${esc(MONTH_NAMES[s.peakMonth])} was your lifer month.</h2>
@@ -657,7 +667,7 @@ function buildLifeSlides(s, mark, spBirds) {
       <p class="sub pop">${esc(s.persona.why)}</p>
       <div class="chips">
         <div class="chip"><b>${fmt(s.lifeTotal)}</b>on your life list</div>
-        <div class="chip"><b>${(lifers.length / 12).toFixed(1)}</b>new species a month</div>
+        ${s.undated ? "" : `<div class="chip"><b>${(lifers.length / 12).toFixed(1)}</b>new species a month</div>`}
         ${s.countries ? `<div class="chip"><b>${s.countries}</b>${s.countries === 1 ? "country" : "countries"}</div>` : ""}
       </div>
       ${mark}
@@ -694,9 +704,10 @@ function bubbleHtml(bird) {
     const place = cleanLoc(first.loc);
     const cc = first.state ? regionName(first.state.split("-")[0]) : "";
     const where = [place, cc && !place.includes(cc) ? cc : ""].filter(Boolean).join(", ");
-    lines.push('<p class="bl"><span>First seen</span><span class="v">' + esc(dFull(first.date)) + (where ? " · " + esc(where) : "") + "</span></p>");
-    const lifer = first.date.startsWith(st.year);
-    lines.push('<p class="bl"><span>Lifer</span><span class="v">' + (lifer ? '<b class="yes">Yes, new for you in ' + esc(st.year) + "</b>" : "No, first seen " + esc(first.date.slice(0, 4))) + "</span></p>");
+    const unknownDate = +first.date.slice(0, 4) < 1950;
+    lines.push('<p class="bl"><span>First seen</span><span class="v">' + (unknownDate ? "Date unknown" : esc(dFull(first.date))) + (where ? " · " + esc(where) : "") + "</span></p>");
+    const lifer = st.isIn(first.date);
+    lines.push('<p class="bl"><span>Lifer</span><span class="v">' + (lifer ? '<b class="yes">Yes, new for you ' + (st.undated ? "(date unknown)" : "in " + esc(st.year)) + "</b>" : unknownDate ? "No, first seen earlier (date unknown)" : "No, first seen " + esc(first.date.slice(0, 4))) + "</span></p>");
   }
   if (e && !st.life) {
     lines.push('<p class="bl"><span>This year</span><span class="v">On ' + fmt(e.lists.size) + (e.lists.size === 1 ? " checklist" : " checklists") + (e.total ? ", " + fmt(e.total) + " counted" : "") + "</span></p>");
@@ -941,7 +952,7 @@ function renderYear(year) {
     hideBubble();
     $("slides").innerHTML = ""; slideEls = []; CURRENT = null; show(0);
     renderSkips(stats);
-    $("vstatus").textContent = "No birds that match the sticker set were found for " + year + ".";
+    $("vstatus").textContent = "No birds that match the sticker set were found for " + (year === "unknown" ? "that bucket" : year) + ".";
     return;
   }
   $("vstatus").textContent = "";
@@ -962,7 +973,7 @@ const SKIP_TEXT = {
 function renderSkips(s) {
   const box = $("skipbox");
   const ns = s.noSticker || [];
-  const ph = ROWS.placeholder || 0; // species with no known date
+  const ph = s.undated ? 0 : ROWS.placeholder || 0; // species with no known date (shown on their own under Unknown date)
   if (!s.skipped && !ns.length && !ph) { box.hidden = true; box.innerHTML = ""; return; }
   const what = ROWS.isLife ? "entries" : "observations";
   const groups = [...s.skipInfo.entries()].map(([reason, m]) => {
@@ -977,7 +988,7 @@ function renderSkips(s) {
     ? `<li><b>${fmt(ph)}</b> ${ph === 1 ? "species has" : "species have"} no real date (eBird shows 1 Jan 1900 when it doesn't know). ${ph === 1 ? "It counts" : "They count"} in your life list total but not in any one year.</li>`
     : "";
   const bits = [];
-  if (s.skipped) bits.push(`${fmt(s.skipped)} of ${fmt(s.totalRows)} ${what} in ${esc(s.year)} were left out`);
+  if (s.skipped) bits.push(`${fmt(s.skipped)} of ${fmt(s.totalRows)} ${what} ${esc(s.inYear)} were left out`);
   if (ph) bits.push(`${fmt(ph)} ${ph === 1 ? "species" : "species"} with no known date`);
   if (ns.length) bits.push(`${fmt(ns.length)} ${ns.length === 1 ? "species" : "species"} counted without a sticker`);
   box.hidden = false;
@@ -989,7 +1000,7 @@ function openViewer() {
   const years = listYears(ROWS);
   if (!years.length) throw new Error("No dated observations found in that file.");
   if (!ROWS.some((r) => resolve(r.sci, r.en))) throw new Error("None of the birds in that file matched the sticker set, so there is nothing to show. Check that the names are common or scientific bird names.");
-  $("year").innerHTML = years.map((x) => `<option value="${x.y}">${x.y} (${fmt(x.n)} ${ROWS.isLife ? "new species" : "checklists"})</option>`).join("");
+  $("year").innerHTML = years.map((x) => `<option value="${x.y}">${x.y === "unknown" ? "Unknown date" : x.y} (${fmt(x.n)} ${ROWS.isLife ? "new species" : "checklists"})</option>`).join("");
   $("landing").hidden = true;
   $("viewer").hidden = false;
   $("deck").classList.add("nudge"); // one gentle hint that the cards can be swiped through
@@ -1159,7 +1170,7 @@ async function runDialog() {
   if (dlgMode === "share") {
     const files = list.map((f) => new File([f.blob], f.name, { type: "image/png" }));
     if (navigator.canShare && navigator.canShare({ files })) {
-      try { await navigator.share({ files, title: "My " + YEAR + " in birds" }); $("dlg").close(); $("vstatus").textContent = ""; }
+      try { await navigator.share({ files, title: YEAR === "unknown" ? "My undated birds" : "My " + YEAR + " in birds" }); $("dlg").close(); $("vstatus").textContent = ""; }
       catch (e) { if (e.name !== "AbortError") msg("Couldn't share: " + e.message); } // cancelling the share sheet keeps the dialog open
       return;
     }
