@@ -29,7 +29,7 @@ async function landsOn(p) {
   const loc = r.headers.get("location");
   return { status: r.status, to: loc ? new URL(loc, base + p) : null };
 }
-const mustRedirect = ["/wrapped.", "/wrapped,", "/wrapped;", "/wrapped:", "/wrapped!", "/wrapped)", "/wrapped-", "/wrapped%20", "/Wrapped", "/WRAPPED", "/WrApped", "/wRAPPED", "/WRAPPEd", "/Wrapped.", "/WRAPPED,", "/WrApped%20"];
+const mustRedirect = ["/wrapped.", "/wrapped,", "/wrapped;", "/wrapped:", "/wrapped!", "/wrapped)", "/wrapped-", "/wrapped%20", "/Wrapped", "/WRAPPED", "/WrApped", "/wRAPPED", "/WRAPPEd", "/Wrapped.", "/WRAPPED,", "/WrApped%20", "/Wrapped/", "/WRAPPED/"];
 for (const p of mustRedirect) {
   try {
     const r = await landsOn(p);
