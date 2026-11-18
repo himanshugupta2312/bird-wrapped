@@ -38,7 +38,7 @@ async function loadBirds() {
 
 const stickerUrl = (b) => (b && b.sticker ? CDN + b.sticker.split("/").map(encodeURIComponent).join("/") : "");
 const img = (b, cls = "", extra = "") =>
-  b && b.sticker ? `<img ${cls ? `class="${cls}"` : ""} ${extra} data-b="${b.i}" tabindex="0" role="button" crossorigin="anonymous" alt="${esc(b.en)}, show details" src="${stickerUrl(b)}">` : "";
+  b && b.sticker ? `<img ${cls ? `class="${cls}"` : ""} ${extra} data-b="${b.i}" tabindex="0" role="button" draggable="false" crossorigin="anonymous" alt="${esc(b.en)}, show details" src="${stickerUrl(b)}">` : "";
 
 /* ------------------------------------------------------------------- csv */
 
@@ -719,10 +719,36 @@ function showBubble(imgEl) {
 function renderProgress() {
   $("progress").innerHTML = slideEls.map((_, i) => `<i class="${i <= cur ? "done" : ""}"></i>`).join("");
 }
-function show(i) {
+const reduceMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+let pos = 0;          // where the carousel is, in cards (fractional while dragging)
+let animTimer = 0;
+let swallowClick = false; // a drag must not also count as a tap
+
+// every card is laid out side by side; its distance from pos decides where it sits
+function layoutCards(p) {
+  slideEls.forEach((el, i) => { el.style.transform = "translate3d(" + (i - p) * 100 + "%,0,0)"; });
+}
+// only cards near the view are drawn, which keeps long sets light
+function markVisible(a, b2) {
+  slideEls.forEach((el, i) => el.classList.toggle("vis", Math.abs(i - a) < 1.01 || Math.abs(i - b2) < 1.01));
+}
+
+function show(i, instant) {
   hideBubble();
   cur = Math.max(0, Math.min(slideEls.length - 1, i));
   slideEls.forEach((el, k) => el.classList.toggle("active", k === cur));
+  const cont = $("slides");
+  clearTimeout(animTimer);
+  if (instant || reduceMotion() || !slideEls.length) {
+    cont.classList.add("dragging"); // no transition
+    layoutCards(cur); markVisible(cur, cur);
+  } else {
+    cont.classList.remove("dragging");
+    markVisible(pos, cur);          // keep the card we are leaving drawn until the slide ends
+    layoutCards(cur);
+    animTimer = setTimeout(() => markVisible(cur, cur), 460);
+  }
+  pos = cur;
   renderProgress();
   $("prev").disabled = cur === 0;
   $("next").disabled = cur === slideEls.length - 1;
@@ -730,6 +756,50 @@ function show(i) {
   $("tapNext").classList.toggle("end", cur === slideEls.length - 1);
   if (cur !== 0) $("deck").classList.remove("nudge");
   updateCue();
+}
+
+// drag or swipe the card sideways; it follows the finger and settles on the nearest card
+function initSwipe() {
+  const el = $("scaler");
+  let down = false, drag = false, sx = 0, sy = 0, st = 0, pid = null, w = 360;
+  el.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (slideEls.length < 2) return;
+    down = true; drag = false; sx = e.clientX; sy = e.clientY; st = performance.now(); pid = e.pointerId;
+    w = el.getBoundingClientRect().width || 360;
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!down || e.pointerId !== pid) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!drag) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dy) > Math.abs(dx)) { down = false; return; } // mostly vertical: leave it to the page
+      drag = true;
+      hideBubble();
+      $("deck").classList.remove("nudge");
+      $("slides").classList.add("dragging");
+      clearTimeout(animTimer);
+    }
+    const last = slideEls.length - 1;
+    let p = cur - dx / w;
+    if (p < 0) p = p / 3; else if (p > last) p = last + (p - last) / 3; // a little give at both ends
+    pos = p;
+    layoutCards(p); markVisible(p, p);
+  });
+  const end = (e) => {
+    if (!down || (e.pointerId !== pid && e.type !== "pointercancel")) return;
+    down = false;
+    if (!drag) return;
+    drag = false;
+    swallowClick = true; setTimeout(() => { swallowClick = false; }, 80);
+    const dx = e.type === "pointercancel" ? 0 : e.clientX - sx, v = dx / Math.max(1, performance.now() - st);
+    let target = cur;
+    if (dx < -w * 0.22 || v < -0.45) target = cur + 1;
+    else if (dx > w * 0.22 || v > 0.45) target = cur - 1;
+    show(target);
+  };
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
 }
 
 // the button under the card: "See the details" on the summary, "Back to summary" on the last card
@@ -748,7 +818,7 @@ function mountSlides(html) {
   $("slides").innerHTML = html.join("");
   slideEls = [...$("slides").children];
   slidesVer++; rendered.clear();
-  show(0);
+  show(0, true);
 }
 function fit() {
   const s = Math.max(0.5, Math.min((window.innerWidth - 32) / 360, (window.innerHeight - 260) / 640, 1.6));
@@ -847,7 +917,14 @@ async function capture(el) {
       st.textContent = "*, *::before, *::after { animation: none !important; transition: none !important; }";
       doc.head.appendChild(st);
       const slides = doc.getElementById("slides");
-      if (slides && idx >= 0 && slides.children[idx]) fitStickers(el, slides.children[idx]);
+      if (slides && idx >= 0 && slides.children[idx]) {
+        // the copy shows only this card, in place, as it is laid out when it is the current one
+        [...slides.children].forEach((c, k) => {
+          if (k === idx) { c.style.setProperty("transform", "none", "important"); c.style.setProperty("visibility", "visible", "important"); }
+          else c.style.display = "none";
+        });
+        fitStickers(el, slides.children[idx]);
+      }
     },
   });
 }
@@ -885,6 +962,7 @@ function openDialog(mode) {
   $("pickList").innerHTML = slideEls.map((el, i) => {
     const clone = el.cloneNode(true);
     clone.classList.add("active");
+    clone.removeAttribute("style");
     clone.querySelectorAll("img").forEach((im) => { im.removeAttribute("tabindex"); im.removeAttribute("role"); im.removeAttribute("data-b"); });
     return '<label class="pick" data-i="' + i + '"><input type="checkbox" data-i="' + i + '">' +
       '<span class="thumb"><span class="thumb-in">' + clone.outerHTML + '</span><span class="tick" aria-hidden="true"></span></span>' +
@@ -930,7 +1008,7 @@ async function prepare() {
     while ($("dlg").open) {
       const next = [...selected].sort((x, y) => x - y).find((i) => !rendered.has(rkey(i)));
       if (next === undefined) break;
-      show(next);
+      show(next, true);
       await new Promise((r) => setTimeout(r, 650)); // let entry animations finish
       rendered.set(rkey(next), { name: cardName(next), blob: await toBlob(await capture(slideEls[next])) });
       syncPicker();
@@ -938,7 +1016,7 @@ async function prepare() {
   } catch (e) {
     msg("Couldn't render the cards: " + e.message);
   } finally {
-    show(keep); preparing = false; syncPicker();
+    show(keep, true); preparing = false; syncPicker();
   }
 }
 
@@ -1084,21 +1162,32 @@ function init() {
   $("prev").addEventListener("click", () => show(cur - 1));
   $("next").addEventListener("click", () => show(cur + 1));
   // a tap on the card while a bubble is open only closes the bubble, it does not turn the page
-  $("tapPrev").addEventListener("click", () => { if (bubbleFor) hideBubble(); else show(cur - 1); });
-  $("tapNext").addEventListener("click", () => { if (bubbleFor) hideBubble(); else show(cur + 1); });
+  $("tapPrev").addEventListener("click", () => { if (swallowClick) return; if (bubbleFor) hideBubble(); else show(cur - 1); });
+  $("tapNext").addEventListener("click", () => { if (swallowClick) return; if (bubbleFor) hideBubble(); else show(cur + 1); });
   document.addEventListener("click", (e) => { // a tap on empty page space closes it too
+    if (swallowClick) return;
     if (bubbleFor && e.target.closest && !e.target.closest("#bubble, img[data-b], .tap, button, a, select, label, summary, textarea, input, dialog")) hideBubble();
   });
   $("slides").addEventListener("click", (e) => {
+    if (swallowClick) return;
     const t = e.target.closest ? e.target.closest("img[data-b]") : null;
     if (t) { e.stopPropagation(); showBubble(t); }
   });
   $("slides").addEventListener("keydown", (e) => {
     if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("img[data-b]")) { e.preventDefault(); showBubble(e.target); }
   });
-  const refreshSummary = () => { if (!CURRENT) return; const keep = cur; mountSlides(buildSlides(CURRENT)); show(keep); };
+  const refreshSummary = () => { if (!CURRENT) return; const keep = cur; mountSlides(buildSlides(CURRENT)); show(keep, true); };
   let nameTimer;
   $("nameIn").addEventListener("input", (e) => { summaryName = e.target.value.trim(); clearTimeout(nameTimer); nameTimer = setTimeout(refreshSummary, 250); });
+  initSwipe();
+  $("scaler").addEventListener("click", (e) => {
+    if (swallowClick) return;
+    const t = e.target;
+    if (t.closest && (t.closest("img[data-b]") || t.closest(".tap"))) return; // birds and the keyboard buttons handle themselves
+    if (bubbleFor) { hideBubble(); return; }
+    const r = $("scaler").getBoundingClientRect();
+    show((e.clientX - r.left) / r.width < 0.34 ? cur - 1 : cur + 1);
+  });
   $("cue").addEventListener("click", () => show($("cue").dataset.go === "next" ? 1 : 0));
   $("share").addEventListener("click", () => openDialog("share"));
   $("download").addEventListener("click", () => openDialog("download"));
@@ -1152,7 +1241,7 @@ function init() {
     }).catch((e) => setStatus(e.message, true));
   }
   if (q.has("slide")) {
-    const t = setInterval(() => { if (slideEls.length) { clearInterval(t); show(+q.get("slide")); } }, 100);
+    const t = setInterval(() => { if (slideEls.length) { clearInterval(t); show(+q.get("slide"), true); } }, 100);
     setTimeout(() => clearInterval(t), 8000);
   }
 }

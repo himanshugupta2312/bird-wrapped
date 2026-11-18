@@ -120,10 +120,9 @@ select { font: 500 14px var(--sans); padding: 6px 10px; border-radius: 10px; bor
 /* ---------- story cards ---------- */
 /* Instagram covers roughly the top and bottom 14% of a Story, so keep everything inside that margin */
 .slide {
-  position: absolute; inset: 0; display: none; flex-direction: column; padding: 90px 28px 90px;
+  position: absolute; inset: 0; display: flex; visibility: hidden; flex-direction: column; will-change: transform; transition: transform .42s var(--ease); padding: 90px 28px 90px;
   color: #fff; overflow: hidden; font-family: var(--sans);
 }
-.slide.active { display: flex; }
 .slide .k { text-transform: uppercase; letter-spacing: .16em; font-size: 11px; font-weight: 600; opacity: .8; margin: 0 0 10px; }
 .slide h2 { font: 800 34px/1.05 var(--serif); margin: 0; letter-spacing: -.02em; }
 .slide .big { font: 800 112px/0.95 var(--serif); letter-spacing: -.04em; margin: 8px 0 6px; }
@@ -207,7 +206,7 @@ dialog.glass::backdrop { background: rgba(5,8,10,.6); -webkit-backdrop-filter: b
 .pick:has(input:focus-visible) .thumb { outline: 2px solid var(--moss-text); outline-offset: 2px; }
 .thumb-in { position: absolute; left: 0; top: 0; width: 360px; height: 640px; transform: scale(.2222); transform-origin: top left; pointer-events: none; }
 .thumb-in .slide, .thumb-in .slide * { animation: none !important; }
-.thumb-in .slide { display: flex; }
+.thumb-in .slide { display: flex; visibility: visible; transform: none !important; transition: none; }
 .tick { position: absolute; top: 5px; right: 5px; width: 20px; height: 20px; border-radius: 9999px; border: 1.5px solid rgba(255,255,255,.7); background: rgba(0,0,0,.35); display: grid; place-items: center; }
 .pick.on .tick { background: var(--moss-hi); border-color: #fff; }
 .pick.on .tick::after { content: ""; width: 5px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
@@ -351,3 +350,16 @@ dialog .hint { margin: 10px 0 0; }
 .cue.first { animation: cuePulse 2.6s var(--ease) infinite; }
 @keyframes cuePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(141,179,161,.0); } 50% { box-shadow: 0 0 0 7px rgba(141,179,161,.22); } }
 @media (prefers-reduced-motion: reduce) { .cue.first { animation: none; } }
+
+/* swiping: cards sit side by side, the one in view is "vis" */
+.slide.vis { visibility: visible; }
+#slides.dragging .slide { transition: none; }
+.scaler { touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: grab; }
+.scaler:active { cursor: grabbing; }
+.slide img { -webkit-user-drag: none; }
+@media (prefers-reduced-motion: reduce) { .slide { transition: none; } }
+
+/* the edge buttons are now only a visual cue (and keyboard targets); real taps are read from the card */
+.tap { pointer-events: none; }
+.scaler:hover .tap.prev .chev { transform: translateX(8px); }
+.scaler:hover .tap.next .chev { transform: translateX(-8px); }
